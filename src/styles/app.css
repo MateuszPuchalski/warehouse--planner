@@ -1,0 +1,53 @@
+@import "tailwindcss";
+
+@theme {
+  --color-bg: #101216;
+  --color-panel: #171a20;
+  --color-panel2: #1e222a;
+  --color-border: #2a2f3a;
+  --color-text: #d7dbe4;
+  --color-muted: #8b93a3;
+  --color-accent: #4c9aff;
+  --color-danger: #ff5c5c;
+  --color-ok: #3ddc84;
+  --color-warn: #ffb020;
+}
+
+@layer components {
+  .btn {
+    @apply inline-flex cursor-pointer items-center gap-1 rounded-md border border-border bg-panel2 px-2 py-1 text-xs text-text transition-colors hover:bg-border/60 disabled:pointer-events-none disabled:opacity-40;
+  }
+  .btn-accent {
+    @apply border-accent/40 bg-accent/15 text-accent hover:bg-accent/25;
+  }
+  .btn-danger {
+    @apply border-danger/40 bg-danger/10 text-danger hover:bg-danger/20;
+  }
+  .field {
+    @apply w-full rounded-md border border-border bg-bg px-2 py-1 text-xs text-text outline-none focus:border-accent;
+  }
+  .panel-title {
+    @apply text-[11px] font-semibold tracking-wider text-muted uppercase;
+  }
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  overflow: hidden;
+  background: var(--color-bg);
+}
+
+input,
+textarea {
+  user-select: text;
+}
+
+canvas {
+  display: block;
+}

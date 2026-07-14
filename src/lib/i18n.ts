@@ -1,0 +1,314 @@
+import { useMemo } from 'react'
+import { create } from 'zustand'
+import type { SlotStatus } from '../types'
+
+export type Lang = 'en' | 'pl'
+
+const LANG_KEY = 'wp:lang:v1'
+
+const en = {
+  'app.title': 'Warehouse Planner',
+
+  'top.undo': 'Undo',
+  'top.redo': 'Redo',
+  'top.undoTip': 'Undo (Ctrl+Z)',
+  'top.redoTip': 'Redo (Ctrl+Y)',
+  'top.color': 'Color',
+  'top.color.status': 'Status',
+  'top.color.utilization': 'Utilization',
+  'top.color.none': 'None',
+  'top.presets': 'Presets',
+  'top.export': 'Export',
+  'top.import': 'Import',
+  'top.layoutName': 'Layout name',
+  'top.language': 'Language',
+
+  'toast.imported': 'Imported "{name}"',
+  'toast.importFailed': 'Import failed: {msg}',
+  'toast.cannotPlace': 'Cannot place here — overlaps a rack or leaves the floor',
+  'toast.rotateOverlap': 'Warning: rotated rack now overlaps or leaves the floor',
+  'toast.templateNeedsName': 'Template needs a name',
+  'toast.presetNeedsName': 'Preset needs a name',
+  'toast.presetSaved': 'Preset "{name}" saved',
+  'toast.presetLoaded': 'Loaded preset "{name}"',
+  'toast.templateUpdated': 'Template updated',
+  'toast.templateCreated': 'Template created',
+  'toast.templateDeleted': 'Template deleted',
+  'toast.templateInUse': 'Cannot delete: {n} placed rack(s) use this template',
+  'toast.savedToLibrary': 'Saved "{name}" to library',
+  'toast.addedFromLibrary': 'Added "{name}" to this layout',
+
+  'tool.mode': 'Mode',
+  'tool.select': 'Select / move',
+  'tool.place': 'Place racks',
+  'tool.delete': 'Delete racks',
+  'tool.templates': 'Rack templates',
+  'tool.newTemplate': '+ New template',
+  'tool.fromLibrary': 'From library…',
+  'tool.hideLibrary': 'Hide library',
+  'tool.libraryEmpty': 'Library is empty. Use “Save to library” in the template editor.',
+  'tool.add': 'Add',
+  'tool.editTemplate': 'Edit template',
+  'tool.card': '{bays} bays × {levels} levels',
+
+  'floor.title': 'Floor settings',
+  'floor.width': 'Width',
+  'floor.depth': 'Depth',
+  'floor.snap': 'Grid snap',
+  'floor.minAisle': 'Min aisle',
+  'floor.showGuides': 'Show aisle warnings',
+  'floor.clear': 'Clear all racks ({n})',
+  'floor.help':
+    'Click a rack to inspect it. Use the toolbar or press P to place racks, R to rotate, Del to remove.',
+
+  'rack.title': 'Rack',
+  'rack.name': 'Name',
+  'rack.namePlaceholder': 'Unnamed rack',
+  'rack.template': 'Template',
+  'rack.position': 'Position',
+  'rack.rotation': 'Rotation',
+  'rack.occupied': 'Slots: {occ}/{total} occupied',
+  'rack.overweight': '{n} overweight',
+  'rack.rotate': '⟳ Rotate',
+  'rack.rotateTip': 'Rotate 90° (R)',
+  'rack.delete': '✕ Delete',
+  'rack.deleteTip': 'Delete (Del)',
+  'rack.slotsTitle': 'Slots — click to edit',
+
+  'slotgrid.bays': 'Bay 1 → {n}',
+  'slotgrid.top': 'top = level {n}',
+
+  'slot.title': 'Slot · bay {bay}, level {level}',
+  'slot.label': 'Label',
+  'slot.maxWeight': 'Max weight',
+  'slot.currentWeight': 'Current weight',
+  'slot.status': 'Status',
+  'slot.auto': 'Auto (by weight)',
+  'slot.utilized': '{pct}% utilized',
+  'slot.reset': 'Reset to default',
+
+  'status.empty': 'Empty',
+  'status.ok': 'OK',
+  'status.warning': 'Near capacity',
+  'status.overweight': 'Overweight',
+  'status.blocked': 'Blocked',
+
+  'tpl.edit': 'Edit template',
+  'tpl.new': 'New template',
+  'tpl.name': 'Name',
+  'tpl.bays': 'Bays',
+  'tpl.levels': 'Levels',
+  'tpl.bayWidth': 'Bay width (m)',
+  'tpl.levelHeight': 'Level height (m)',
+  'tpl.depth': 'Depth (m)',
+  'tpl.defaultWeight': 'Default max weight (kg)',
+  'tpl.slots': '{n} slots',
+  'tpl.affects': 'affects {n} placed rack(s)',
+  'tpl.delete': 'Delete',
+  'tpl.inUse': 'In use by placed racks',
+  'tpl.saveLib': 'Save to library',
+  'tpl.save': 'Save',
+  'tpl.create': 'Create',
+  'tpl.defaultName': 'New rack type',
+
+  'preset.title': 'Layout presets',
+  'preset.name': 'Preset name',
+  'preset.saveCurrent': 'Save current',
+  'preset.empty': 'No presets yet — save the current layout above.',
+  'preset.meta': '{racks} racks · {templates} templates',
+  'preset.load': 'Load',
+  'preset.note':
+    'Presets are stored in this browser. Loading a preset replaces the current layout (undoable with Ctrl+Z). Use Export/Import in the top bar to share layouts as files.',
+
+  'sb.counts': '{racks} racks · {slots} slots',
+  'sb.aislesOk': '✓ aisles OK',
+  'sb.warnings': '⚠ aisle warnings: {n}',
+  'sb.warningsTip': 'Click to select the first offending rack',
+  'sb.mode': 'Mode',
+  'mode.select': 'select',
+  'mode.place': 'place',
+  'mode.delete': 'delete',
+  'sb.hints': 'V select · P place · R rotate · X delete · Del remove · Ctrl+Z undo · Esc cancel',
+}
+
+const pl: Record<TranslationKey, string> = {
+  'app.title': 'Planer magazynu',
+
+  'top.undo': 'Cofnij',
+  'top.redo': 'Ponów',
+  'top.undoTip': 'Cofnij (Ctrl+Z)',
+  'top.redoTip': 'Ponów (Ctrl+Y)',
+  'top.color': 'Kolor',
+  'top.color.status': 'Status',
+  'top.color.utilization': 'Wykorzystanie',
+  'top.color.none': 'Brak',
+  'top.presets': 'Presety',
+  'top.export': 'Eksport',
+  'top.import': 'Import',
+  'top.layoutName': 'Nazwa układu',
+  'top.language': 'Język',
+
+  'toast.imported': 'Zaimportowano „{name}”',
+  'toast.importFailed': 'Import nieudany: {msg}',
+  'toast.cannotPlace': 'Nie można postawić — koliduje z regałem lub wystaje poza halę',
+  'toast.rotateOverlap': 'Uwaga: po obrocie regał koliduje lub wystaje poza halę',
+  'toast.templateNeedsName': 'Szablon musi mieć nazwę',
+  'toast.presetNeedsName': 'Preset musi mieć nazwę',
+  'toast.presetSaved': 'Zapisano preset „{name}”',
+  'toast.presetLoaded': 'Wczytano preset „{name}”',
+  'toast.templateUpdated': 'Zaktualizowano szablon',
+  'toast.templateCreated': 'Utworzono szablon',
+  'toast.templateDeleted': 'Usunięto szablon',
+  'toast.templateInUse': 'Nie można usunąć — szablon jest używany przez {n} regał(ów)',
+  'toast.savedToLibrary': 'Zapisano „{name}” do biblioteki',
+  'toast.addedFromLibrary': 'Dodano „{name}” do tego układu',
+
+  'tool.mode': 'Tryb',
+  'tool.select': 'Zaznaczanie / przesuwanie',
+  'tool.place': 'Stawianie regałów',
+  'tool.delete': 'Usuwanie regałów',
+  'tool.templates': 'Szablony regałów',
+  'tool.newTemplate': '+ Nowy szablon',
+  'tool.fromLibrary': 'Z biblioteki…',
+  'tool.hideLibrary': 'Ukryj bibliotekę',
+  'tool.libraryEmpty': 'Biblioteka jest pusta. Użyj „Zapisz do biblioteki” w edytorze szablonów.',
+  'tool.add': 'Dodaj',
+  'tool.editTemplate': 'Edytuj szablon',
+  'tool.card': '{bays} przęs. × {levels} poz.',
+
+  'floor.title': 'Ustawienia hali',
+  'floor.width': 'Szerokość',
+  'floor.depth': 'Głębokość',
+  'floor.snap': 'Skok siatki',
+  'floor.minAisle': 'Min. alejka',
+  'floor.showGuides': 'Pokazuj ostrzeżenia alejek',
+  'floor.clear': 'Usuń wszystkie regały ({n})',
+  'floor.help':
+    'Kliknij regał, aby go edytować. Użyj paska narzędzi lub naciśnij P (stawianie), R (obrót), Del (usuwanie).',
+
+  'rack.title': 'Regał',
+  'rack.name': 'Nazwa',
+  'rack.namePlaceholder': 'Regał bez nazwy',
+  'rack.template': 'Szablon',
+  'rack.position': 'Pozycja',
+  'rack.rotation': 'Obrót',
+  'rack.occupied': 'Sloty: {occ}/{total} zajęte',
+  'rack.overweight': 'przeciążone: {n}',
+  'rack.rotate': '⟳ Obróć',
+  'rack.rotateTip': 'Obróć o 90° (R)',
+  'rack.delete': '✕ Usuń',
+  'rack.deleteTip': 'Usuń (Del)',
+  'rack.slotsTitle': 'Sloty — kliknij, aby edytować',
+
+  'slotgrid.bays': 'Przęsło 1 → {n}',
+  'slotgrid.top': 'góra = poziom {n}',
+
+  'slot.title': 'Slot · przęsło {bay}, poziom {level}',
+  'slot.label': 'Etykieta',
+  'slot.maxWeight': 'Maks. waga',
+  'slot.currentWeight': 'Aktualna waga',
+  'slot.status': 'Status',
+  'slot.auto': 'Auto (wg wagi)',
+  'slot.utilized': 'wykorzystanie: {pct}%',
+  'slot.reset': 'Przywróć domyślne',
+
+  'status.empty': 'Pusty',
+  'status.ok': 'OK',
+  'status.warning': 'Blisko limitu',
+  'status.overweight': 'Przeciążony',
+  'status.blocked': 'Zablokowany',
+
+  'tpl.edit': 'Edytuj szablon',
+  'tpl.new': 'Nowy szablon',
+  'tpl.name': 'Nazwa',
+  'tpl.bays': 'Przęsła',
+  'tpl.levels': 'Poziomy',
+  'tpl.bayWidth': 'Szerokość przęsła (m)',
+  'tpl.levelHeight': 'Wysokość poziomu (m)',
+  'tpl.depth': 'Głębokość (m)',
+  'tpl.defaultWeight': 'Domyślna maks. waga (kg)',
+  'tpl.slots': 'slotów: {n}',
+  'tpl.affects': 'dotyczy postawionych regałów: {n}',
+  'tpl.delete': 'Usuń',
+  'tpl.inUse': 'Używany przez postawione regały',
+  'tpl.saveLib': 'Zapisz do biblioteki',
+  'tpl.save': 'Zapisz',
+  'tpl.create': 'Utwórz',
+  'tpl.defaultName': 'Nowy typ regału',
+
+  'preset.title': 'Presety układów',
+  'preset.name': 'Nazwa presetu',
+  'preset.saveCurrent': 'Zapisz bieżący',
+  'preset.empty': 'Brak presetów — zapisz bieżący układ powyżej.',
+  'preset.meta': 'regały: {racks} · szablony: {templates}',
+  'preset.load': 'Wczytaj',
+  'preset.note':
+    'Presety są zapisywane w tej przeglądarce. Wczytanie presetu zastępuje bieżący układ (można cofnąć Ctrl+Z). Użyj Eksportu/Importu w górnym pasku, aby udostępniać układy jako pliki.',
+
+  'sb.counts': 'regały: {racks} · sloty: {slots}',
+  'sb.aislesOk': '✓ alejki OK',
+  'sb.warnings': '⚠ ostrzeżenia alejek: {n}',
+  'sb.warningsTip': 'Kliknij, aby zaznaczyć pierwszy problematyczny regał',
+  'sb.mode': 'Tryb',
+  'mode.select': 'zaznaczanie',
+  'mode.place': 'stawianie',
+  'mode.delete': 'usuwanie',
+  'sb.hints':
+    'V zaznaczanie · P stawianie · R obrót · X usuwanie · Del usuń · Ctrl+Z cofnij · Esc anuluj',
+}
+
+export type TranslationKey = keyof typeof en
+
+const dicts: Record<Lang, Record<TranslationKey, string>> = { en, pl }
+
+function loadLang(): Lang {
+  try {
+    return localStorage.getItem(LANG_KEY) === 'pl' ? 'pl' : 'en'
+  } catch {
+    return 'en'
+  }
+}
+
+interface I18nState {
+  lang: Lang
+  setLang: (lang: Lang) => void
+}
+
+export const useI18nStore = create<I18nState>()((set) => ({
+  lang: loadLang(),
+  setLang: (lang) => {
+    try {
+      localStorage.setItem(LANG_KEY, lang)
+    } catch {
+      // non-fatal
+    }
+    set({ lang })
+  },
+}))
+
+function format(s: string, vars?: Record<string, string | number>): string {
+  if (!vars) return s
+  return s.replace(/\{(\w+)\}/g, (match, key: string) => (key in vars ? String(vars[key]) : match))
+}
+
+/** Non-reactive translate — for event handlers (toasts). UI components should use useT(). */
+export function t(key: TranslationKey, vars?: Record<string, string | number>): string {
+  return format(dicts[useI18nStore.getState().lang][key], vars)
+}
+
+/** Reactive translate hook — re-renders the component when the language changes. */
+export function useT(): (key: TranslationKey, vars?: Record<string, string | number>) => string {
+  const lang = useI18nStore((s) => s.lang)
+  return useMemo(
+    () => (key: TranslationKey, vars?: Record<string, string | number>) =>
+      format(dicts[lang][key], vars),
+    [lang],
+  )
+}
+
+export function statusLabel(
+  translate: (key: TranslationKey, vars?: Record<string, string | number>) => string,
+  status: SlotStatus,
+): string {
+  return translate(`status.${status}` as TranslationKey)
+}
