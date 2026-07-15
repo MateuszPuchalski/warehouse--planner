@@ -1,4 +1,5 @@
-import type { FloorConfig, RackInstance, RackRotation, RackTemplate, WarehouseLayout } from '../types'
+import type { FloorConfig, RackInstance, RackRotation, RackTemplate, Wall, WarehouseLayout } from '../types'
+import { makePerimeterWalls } from './walls'
 
 const AUTOSAVE_KEY = 'wp:autosave:v1'
 const PRESETS_KEY = 'wp:presets:v1'
@@ -47,6 +48,8 @@ const FLOOR_DEFAULTS: FloorConfig = {
   cellSize: 0.5,
   minAisleWidthM: 3,
   showAisleGuides: true,
+  wallHeightM: 3,
+  wallThicknessM: 0.2,
 }
 
 /** Validate an untrusted layout object; throws Error with a readable message. */
@@ -58,7 +61,7 @@ export function validateLayout(raw: unknown): WarehouseLayout {
   if (typeof l.racks !== 'object' || l.racks === null) throw new Error('Missing "racks"')
 
   const floor: FloorConfig = { ...FLOOR_DEFAULTS, ...(typeof l.floor === 'object' ? l.floor : {}) }
-  for (const k of ['widthM', 'depthM', 'cellSize', 'minAisleWidthM'] as const) {
+  for (const k of ['widthM', 'depthM', 'cellSize', 'minAisleWidthM', 'wallHeightM', 'wallThicknessM'] as const) {
     if (!isFiniteNumber(floor[k]) || floor[k] <= 0) throw new Error(`Invalid floor.${k}`)
   }
 
@@ -87,12 +90,36 @@ export function validateLayout(raw: unknown): WarehouseLayout {
     }
   }
 
+  const walls: Record<string, Wall> = {}
+  if (typeof l.walls === 'object' && l.walls !== null) {
+    for (const [id, w] of Object.entries(l.walls as Record<string, Wall>)) {
+      if (typeof w !== 'object' || w === null) throw new Error(`Invalid wall "${id}"`)
+      for (const k of ['x1', 'z1', 'x2', 'z2'] as const) {
+        if (!isFiniteNumber(w[k])) throw new Error(`Wall "${id}": invalid ${k}`)
+      }
+      for (const k of ['heightM', 'thicknessM'] as const) {
+        if (!isFiniteNumber(w[k]) || w[k] <= 0) throw new Error(`Wall "${id}": invalid ${k}`)
+      }
+      walls[id] = {
+        id,
+        x1: w.x1,
+        z1: w.z1,
+        x2: w.x2,
+        z2: w.z2,
+        heightM: w.heightM,
+        thicknessM: w.thicknessM,
+        ...(w.perimeter ? { perimeter: true } : {}),
+      }
+    }
+  }
+
   return {
     schemaVersion: 1,
     name: typeof l.name === 'string' && l.name.trim() ? l.name : 'Imported layout',
     floor,
     templates,
     racks,
+    walls,
     updatedAt: typeof l.updatedAt === 'string' ? l.updatedAt : new Date().toISOString(),
   }
 }
@@ -247,12 +274,14 @@ export function seedLayout(): WarehouseLayout {
     },
     { id: 'rack-c1', templateId: 'tpl-highbay', name: 'Col C-01', gridX: 24, gridZ: 8, rotation: 90, slotOverrides: {} },
   ]
+  const floor: FloorConfig = { ...FLOOR_DEFAULTS }
   return {
     schemaVersion: 1,
     name: 'Demo warehouse',
-    floor: { ...FLOOR_DEFAULTS },
+    floor,
     templates: seedTemplates(),
     racks: Object.fromEntries(racks.map((r) => [r.id, r])),
+    walls: Object.fromEntries(makePerimeterWalls(floor).map((w) => [w.id, w])),
     updatedAt: new Date().toISOString(),
   }
 }

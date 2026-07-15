@@ -1,9 +1,10 @@
-import type { GhostState, RackRotation } from '../types'
+import type { GhostState, RackRotation, WallDraft } from '../types'
 import { useWarehouseStore, undo, redo } from '../store/useWarehouseStore'
 import { useEditorStore } from '../store/useEditorStore'
 import { clampGridCenter, gridToWorld } from './grid'
 import { getFootprint } from './rackGeometry'
 import { isPlacementValid } from './collision'
+import { MIN_WALL_CELLS, snapWallSegment } from './walls'
 import { t } from './i18n'
 
 /** Snap a candidate footprint to the grid, clamp it to the floor and check validity. */
@@ -67,6 +68,48 @@ export function rotateGhostOrSelection(): void {
   }
 }
 
+/** Snap a dragged segment to the grid, clamp its endpoints to the floor and validate length. */
+export function computeWallDraft(
+  worldX1: number,
+  worldZ1: number,
+  worldX2: number,
+  worldZ2: number,
+): WallDraft {
+  const { floor } = useWarehouseStore.getState().layout
+  const cell = floor.cellSize
+  const snapped = snapWallSegment(worldX1, worldZ1, worldX2, worldZ2, cell)
+  const hwG = floor.widthM / 2 / cell
+  const hdG = floor.depthM / 2 / cell
+  const clampX = (g: number) => Math.max(-hwG, Math.min(hwG, g))
+  const clampZ = (g: number) => Math.max(-hdG, Math.min(hdG, g))
+  const draft = {
+    x1: clampX(snapped.x1),
+    z1: clampZ(snapped.z1),
+    x2: clampX(snapped.x2),
+    z2: clampZ(snapped.z2),
+  }
+  const lenCells = Math.hypot(draft.x2 - draft.x1, draft.z2 - draft.z1)
+  return { ...draft, valid: lenCells >= MIN_WALL_CELLS - 1e-6 }
+}
+
+/** Commit the current wall draft as a new wall. */
+export function commitWallDraft(): void {
+  const ed = useEditorStore.getState()
+  const d = ed.wallDraft
+  ed.setWallDraft(null)
+  if (!d || !d.valid) return
+  const { floor } = useWarehouseStore.getState().layout
+  const id = useWarehouseStore.getState().addWall({
+    x1: d.x1,
+    z1: d.z1,
+    x2: d.x2,
+    z2: d.z2,
+    heightM: floor.wallHeightM,
+    thicknessM: floor.wallThicknessM,
+  })
+  ed.selectWall(id)
+}
+
 /** Start the shrink-out animation; the rack is actually removed in finalizeDelete. */
 export function requestDelete(id: string): void {
   const ed = useEditorStore.getState()
@@ -82,8 +125,13 @@ export function finalizeDelete(id: string): void {
 }
 
 export function deleteSelected(): void {
-  const id = useEditorStore.getState().selectedRackId
-  if (id) requestDelete(id)
+  const ed = useEditorStore.getState()
+  if (ed.selectedWallId) {
+    useWarehouseStore.getState().deleteWall(ed.selectedWallId)
+    ed.selectWall(null)
+    return
+  }
+  if (ed.selectedRackId) requestDelete(ed.selectedRackId)
 }
 
 /** P key: (re-)enter place mode with the last used or first available template. */
@@ -107,6 +155,10 @@ export function escapeAction(): void {
   }
   if (ed.mode !== 'select') {
     ed.setMode('select')
+    return
+  }
+  if (ed.selectedWallId) {
+    ed.selectWall(null)
     return
   }
   ed.selectRack(null)

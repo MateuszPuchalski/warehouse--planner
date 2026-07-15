@@ -5,7 +5,7 @@ export type SlotKey = string
 
 export type SlotStatus = 'empty' | 'ok' | 'warning' | 'overweight' | 'blocked'
 
-export type EditorMode = 'select' | 'place' | 'delete'
+export type EditorMode = 'select' | 'place' | 'delete' | 'wall'
 
 export type ColorMode = 'status' | 'utilization' | 'none'
 
@@ -72,6 +72,26 @@ export interface FloorConfig {
   cellSize: number
   minAisleWidthM: number
   showAisleGuides: boolean
+  /** Default height of newly drawn / perimeter walls in meters. */
+  wallHeightM: number
+  /** Default thickness of newly drawn / perimeter walls in meters. */
+  wallThicknessM: number
+}
+
+/**
+ * A straight wall segment on the floor plane. Endpoints are in grid coordinates
+ * (world = grid * cellSize), matching how racks store their position.
+ */
+export interface Wall {
+  id: string
+  x1: number
+  z1: number
+  x2: number
+  z2: number
+  heightM: number
+  thicknessM: number
+  /** True for the four auto-generated boundary walls, so they can be rebuilt from floor dims. */
+  perimeter?: boolean
 }
 
 export interface WarehouseLayout {
@@ -80,6 +100,7 @@ export interface WarehouseLayout {
   floor: FloorConfig
   templates: Record<string, RackTemplate>
   racks: Record<string, RackInstance>
+  walls: Record<string, Wall>
   updatedAt: string
 }
 
@@ -103,5 +124,14 @@ export interface GhostState {
   gridX: number
   gridZ: number
   rotation: RackRotation
+  valid: boolean
+}
+
+/** Live preview of a wall being drawn by dragging. Endpoints in grid coordinates. */
+export interface WallDraft {
+  x1: number
+  z1: number
+  x2: number
+  z2: number
   valid: boolean
 }

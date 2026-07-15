@@ -24,6 +24,12 @@ npm run dev     # http://localhost:5173
 - **Aisle validation** — facing racks closer than the minimum aisle width get a red
   zone + distance badge; live distance guides while placing. Gaps ≤ 0.5 m count as
   intentional back-to-back (flue) placement.
+- **Walls** — two ways to add them: pick the Wall tool (**W**) and **drag** on the floor
+  to draw a grid-snapped segment (auto axis-locked when near-straight, with a live length
+  badge), or **type the warehouse dimensions** and hit “Build perimeter walls” to wrap the
+  floor — the four boundary walls then follow whenever you retype width/depth. Select a
+  wall to tweak its height/thickness or delete it; wall height/thickness defaults live in
+  the Floor panel.
 - **Persistence** — autosave to localStorage, named presets, reusable template
   library, JSON export/import with validation. Undo/redo (100 steps).
 - **Languages** — English / Polish (Polski), switchable via the EN/PL selector in
@@ -34,9 +40,9 @@ npm run dev     # http://localhost:5173
 
 | Key | Action |
 | --- | --- |
-| V / P / X | Select / Place / Delete mode |
+| V / P / W / X | Select / Place / Wall / Delete mode |
 | R | Rotate ghost or selected rack |
-| Del | Delete selected rack |
+| Del | Delete selected rack or wall |
 | Esc | Close modal / cancel placement / deselect |
 | Ctrl+Z / Ctrl+Y | Undo / redo |
 

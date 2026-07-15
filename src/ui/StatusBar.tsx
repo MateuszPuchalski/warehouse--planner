@@ -13,6 +13,7 @@ export function StatusBar() {
 
   const violations = useMemo(() => validateAisles(layout), [layout])
   const rackCount = Object.keys(layout.racks).length
+  const wallCount = Object.keys(layout.walls).length
   const slotCount = useMemo(
     () =>
       Object.values(layout.racks).reduce((sum, r) => {
@@ -27,7 +28,10 @@ export function StatusBar() {
       <span className="w-32">
         {pointer ? `x ${pointer.x.toFixed(1)} m · z ${pointer.z.toFixed(1)} m` : '—'}
       </span>
-      <span>{t('sb.counts', { racks: rackCount, slots: slotCount })}</span>
+      <span>
+        {t('sb.counts', { racks: rackCount, slots: slotCount })}
+        {wallCount > 0 && ` ${t('sb.walls', { n: wallCount })}`}
+      </span>
       {violations.length > 0 ? (
         <button
           className="cursor-pointer font-medium text-danger hover:underline"
