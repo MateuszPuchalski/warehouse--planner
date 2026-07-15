@@ -80,6 +80,9 @@ export default function App() {
         case 'p':
           armPlaceDefault()
           break
+        case 'w':
+          useEditorStore.getState().setMode('wall')
+          break
         case 'x':
           useEditorStore.getState().setMode('delete')
           break

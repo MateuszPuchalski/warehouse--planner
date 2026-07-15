@@ -4,6 +4,7 @@ import { useWarehouseStore } from '../store/useWarehouseStore'
 import { useEditorStore } from '../store/useEditorStore'
 import { parseSlotKey, rackStats, resolveSlot } from '../lib/rackGeometry'
 import { rotateGhostOrSelection, requestDelete } from '../lib/editorActions'
+import { wallLengthM } from '../lib/walls'
 import { statusLabel, useT } from '../lib/i18n'
 import { SlotGrid } from './SlotGrid'
 
@@ -50,7 +51,10 @@ function FloorPanel() {
   const floor = useWarehouseStore((s) => s.layout.floor)
   const updateFloor = useWarehouseStore((s) => s.updateFloor)
   const clearRacks = useWarehouseStore((s) => s.clearRacks)
+  const buildPerimeterWalls = useWarehouseStore((s) => s.buildPerimeterWalls)
+  const clearWalls = useWarehouseStore((s) => s.clearWalls)
   const rackCount = useWarehouseStore((s) => Object.keys(s.layout.racks).length)
+  const wallCount = useWarehouseStore((s) => Object.keys(s.layout.walls).length)
   const t = useT()
 
   return (
@@ -71,7 +75,56 @@ function FloorPanel() {
       <button className="btn btn-danger mt-2 justify-center" onClick={clearRacks} disabled={rackCount === 0}>
         {t('floor.clear', { n: rackCount })}
       </button>
+
+      <div className="mt-3 h-px bg-border" />
+      <div className="panel-title mt-1">{t('floor.walls')}</div>
+      <NumField label={t('floor.wallHeight')} value={floor.wallHeightM} min={0.5} max={20} step={0.5} suffix="m" onChange={(v) => updateFloor({ wallHeightM: v })} />
+      <NumField label={t('floor.wallThickness')} value={floor.wallThicknessM} min={0.05} max={1} step={0.05} suffix="m" onChange={(v) => updateFloor({ wallThicknessM: v })} />
+      <button className="btn btn-accent mt-1 justify-center" onClick={buildPerimeterWalls}>
+        {t('floor.buildPerimeter')}
+      </button>
+      <button className="btn btn-danger justify-center" onClick={clearWalls} disabled={wallCount === 0}>
+        {t('floor.clearWalls', { n: wallCount })}
+      </button>
+      <p className="text-[11px] leading-relaxed text-muted">{t('floor.wallsHelp')}</p>
+
       <p className="text-[11px] leading-relaxed text-muted">{t('floor.help')}</p>
+    </div>
+  )
+}
+
+function WallPanel({ wallId }: { wallId: string }) {
+  const wall = useWarehouseStore((s) => s.layout.walls[wallId])
+  const cellSize = useWarehouseStore((s) => s.layout.floor.cellSize)
+  const updateWall = useWarehouseStore((s) => s.updateWall)
+  const deleteWall = useWarehouseStore((s) => s.deleteWall)
+  const selectWall = useEditorStore((s) => s.selectWall)
+  const t = useT()
+
+  if (!wall) return null
+
+  const remove = () => {
+    deleteWall(wallId)
+    selectWall(null)
+  }
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="panel-title">{t('wall.title')}</div>
+
+      <div className="grid grid-cols-2 gap-1 text-[11px] text-muted">
+        <span>
+          {t('wall.length')}: {wallLengthM(wall, cellSize).toFixed(2)} m
+        </span>
+        <span>{wall.perimeter ? t('wall.perimeter') : t('wall.custom')}</span>
+      </div>
+
+      <NumField label={t('wall.height')} value={wall.heightM} min={0.5} max={20} step={0.5} suffix="m" onChange={(v) => updateWall(wallId, { heightM: v })} />
+      <NumField label={t('wall.thickness')} value={wall.thicknessM} min={0.05} max={1} step={0.05} suffix="m" onChange={(v) => updateWall(wallId, { thicknessM: v })} />
+
+      <button className="btn btn-danger justify-center" onClick={remove} title={t('wall.deleteTip')}>
+        {t('wall.delete')}
+      </button>
     </div>
   )
 }
@@ -251,9 +304,16 @@ function RackPanel({ rackId }: { rackId: string }) {
 
 export function Inspector() {
   const selectedRackId = useEditorStore((s) => s.selectedRackId)
+  const selectedWallId = useEditorStore((s) => s.selectedWallId)
   return (
     <aside className="w-72 shrink-0 overflow-y-auto border-l border-border bg-panel p-3">
-      {selectedRackId ? <RackPanel rackId={selectedRackId} /> : <FloorPanel />}
+      {selectedRackId ? (
+        <RackPanel rackId={selectedRackId} />
+      ) : selectedWallId ? (
+        <WallPanel wallId={selectedWallId} />
+      ) : (
+        <FloorPanel />
+      )}
     </aside>
   )
 }

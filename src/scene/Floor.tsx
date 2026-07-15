@@ -1,8 +1,20 @@
+import * as THREE from 'three'
 import { Grid, Line } from '@react-three/drei'
-import type { ThreeEvent } from '@react-three/fiber'
+import { useThree, type ThreeEvent } from '@react-three/fiber'
 import { useWarehouseStore } from '../store/useWarehouseStore'
 import { useEditorStore } from '../store/useEditorStore'
-import { computeGhost, placeAtGhost, rotateGhostOrSelection } from '../lib/editorActions'
+import {
+  computeGhost,
+  computeWallDraft,
+  commitWallDraft,
+  placeAtGhost,
+  rotateGhostOrSelection,
+} from '../lib/editorActions'
+
+const FLOOR_PLANE = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0)
+const wallRaycaster = new THREE.Raycaster()
+const tmpNdc = new THREE.Vector2()
+const tmpHit = new THREE.Vector3()
 
 /** Warehouse floor — visual plane + grid, and the single raycast target for placement. */
 export function Floor() {
@@ -11,6 +23,9 @@ export function Floor() {
   const placingTemplateId = useEditorStore((s) => s.placingTemplateId)
 
   const editor = useEditorStore.getState
+  const camera = useThree((s) => s.camera)
+  const gl = useThree((s) => s.gl)
+  const controls = useThree((s) => s.controls) as unknown as { enabled: boolean } | null
 
   const onPointerMove = (e: ThreeEvent<PointerEvent>) => {
     editor().setPointer({ x: e.point.x, z: e.point.z })
@@ -20,10 +35,45 @@ export function Floor() {
     }
   }
 
+  /** Drag on the floor in wall mode to draw a wall segment, tracked via window listeners. */
+  const onPointerDown = (e: ThreeEvent<PointerEvent>) => {
+    if (mode !== 'wall' || e.button !== 0) return
+    e.stopPropagation()
+    if (controls) controls.enabled = false
+    const startX = e.point.x
+    const startZ = e.point.z
+    editor().setWallDraft(computeWallDraft(startX, startZ, startX, startZ))
+
+    const onMove = (ev: PointerEvent) => {
+      const rect = gl.domElement.getBoundingClientRect()
+      tmpNdc.set(
+        ((ev.clientX - rect.left) / rect.width) * 2 - 1,
+        -((ev.clientY - rect.top) / rect.height) * 2 + 1,
+      )
+      wallRaycaster.setFromCamera(tmpNdc, camera)
+      if (!wallRaycaster.ray.intersectPlane(FLOOR_PLANE, tmpHit)) return
+      editor().setPointer({ x: tmpHit.x, z: tmpHit.z })
+      editor().setWallDraft(computeWallDraft(startX, startZ, tmpHit.x, tmpHit.z))
+    }
+
+    const onUp = () => {
+      window.removeEventListener('pointermove', onMove)
+      window.removeEventListener('pointerup', onUp)
+      if (controls) controls.enabled = true
+      commitWallDraft()
+    }
+
+    window.addEventListener('pointermove', onMove)
+    window.addEventListener('pointerup', onUp)
+  }
+
   const onClick = (e: ThreeEvent<MouseEvent>) => {
     if (e.delta > 4) return
     if (mode === 'place') placeAtGhost()
-    else if (mode === 'select') editor().selectRack(null)
+    else if (mode === 'select') {
+      editor().selectRack(null)
+      editor().selectWall(null)
+    }
   }
 
   const onContextMenu = (e: ThreeEvent<MouseEvent>) => {
@@ -48,6 +98,7 @@ export function Floor() {
         rotation-x={-Math.PI / 2}
         receiveShadow
         onPointerMove={onPointerMove}
+        onPointerDown={onPointerDown}
         onPointerLeave={() => {
           editor().setPointer(null)
           if (mode === 'place') editor().setGhost(null)

@@ -41,6 +41,7 @@ const en = {
   'tool.mode': 'Mode',
   'tool.select': 'Select / move',
   'tool.place': 'Place racks',
+  'tool.wall': 'Draw walls',
   'tool.delete': 'Delete racks',
   'tool.templates': 'Rack templates',
   'tool.newTemplate': '+ New template',
@@ -58,8 +59,24 @@ const en = {
   'floor.minAisle': 'Min aisle',
   'floor.showGuides': 'Show aisle warnings',
   'floor.clear': 'Clear all racks ({n})',
+  'floor.walls': 'Walls',
+  'floor.wallHeight': 'Wall height',
+  'floor.wallThickness': 'Wall thickness',
+  'floor.buildPerimeter': 'Build perimeter walls',
+  'floor.clearWalls': 'Clear all walls ({n})',
+  'floor.wallsHelp':
+    'Press W (or the ▭ tool) and drag on the floor to draw a wall. “Build perimeter walls” wraps the warehouse using its width × depth — edit those and the boundary walls follow.',
   'floor.help':
     'Click a rack to inspect it. Use the toolbar or press P to place racks, R to rotate, Del to remove.',
+
+  'wall.title': 'Wall',
+  'wall.length': 'Length',
+  'wall.height': 'Height',
+  'wall.thickness': 'Thickness',
+  'wall.perimeter': 'Perimeter',
+  'wall.custom': 'Custom',
+  'wall.delete': '✕ Delete wall',
+  'wall.deleteTip': 'Delete wall (Del)',
 
   'rack.title': 'Rack',
   'rack.name': 'Name',
@@ -127,8 +144,11 @@ const en = {
   'sb.mode': 'Mode',
   'mode.select': 'select',
   'mode.place': 'place',
+  'mode.wall': 'wall',
   'mode.delete': 'delete',
-  'sb.hints': 'V select · P place · R rotate · X delete · Del remove · Ctrl+Z undo · Esc cancel',
+  'sb.walls': '· {n} walls',
+  'sb.hints':
+    'V select · P place · W wall · R rotate · X delete · Del remove · Ctrl+Z undo · Esc cancel',
 }
 
 const pl: Record<TranslationKey, string> = {
@@ -166,6 +186,7 @@ const pl: Record<TranslationKey, string> = {
   'tool.mode': 'Tryb',
   'tool.select': 'Zaznaczanie / przesuwanie',
   'tool.place': 'Stawianie regałów',
+  'tool.wall': 'Rysowanie ścian',
   'tool.delete': 'Usuwanie regałów',
   'tool.templates': 'Szablony regałów',
   'tool.newTemplate': '+ Nowy szablon',
@@ -183,8 +204,24 @@ const pl: Record<TranslationKey, string> = {
   'floor.minAisle': 'Min. alejka',
   'floor.showGuides': 'Pokazuj ostrzeżenia alejek',
   'floor.clear': 'Usuń wszystkie regały ({n})',
+  'floor.walls': 'Ściany',
+  'floor.wallHeight': 'Wysokość ściany',
+  'floor.wallThickness': 'Grubość ściany',
+  'floor.buildPerimeter': 'Zbuduj ściany obwodowe',
+  'floor.clearWalls': 'Usuń wszystkie ściany ({n})',
+  'floor.wallsHelp':
+    'Naciśnij W (lub narzędzie ▭) i przeciągnij po podłodze, aby narysować ścianę. „Zbuduj ściany obwodowe” otacza halę na podstawie jej szerokości × głębokości — zmień te wymiary, a ściany obwodowe podążą za nimi.',
   'floor.help':
     'Kliknij regał, aby go edytować. Użyj paska narzędzi lub naciśnij P (stawianie), R (obrót), Del (usuwanie).',
+
+  'wall.title': 'Ściana',
+  'wall.length': 'Długość',
+  'wall.height': 'Wysokość',
+  'wall.thickness': 'Grubość',
+  'wall.perimeter': 'Obwodowa',
+  'wall.custom': 'Własna',
+  'wall.delete': '✕ Usuń ścianę',
+  'wall.deleteTip': 'Usuń ścianę (Del)',
 
   'rack.title': 'Regał',
   'rack.name': 'Nazwa',
@@ -252,9 +289,11 @@ const pl: Record<TranslationKey, string> = {
   'sb.mode': 'Tryb',
   'mode.select': 'zaznaczanie',
   'mode.place': 'stawianie',
+  'mode.wall': 'ściana',
   'mode.delete': 'usuwanie',
+  'sb.walls': '· ściany: {n}',
   'sb.hints':
-    'V zaznaczanie · P stawianie · R obrót · X usuwanie · Del usuń · Ctrl+Z cofnij · Esc anuluj',
+    'V zaznaczanie · P stawianie · W ściana · R obrót · X usuwanie · Del usuń · Ctrl+Z cofnij · Esc anuluj',
 }
 
 export type TranslationKey = keyof typeof en

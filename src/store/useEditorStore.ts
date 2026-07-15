@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { ColorMode, EditorMode, GhostState, RackRotation, SlotKey } from '../types'
+import type { ColorMode, EditorMode, GhostState, RackRotation, SlotKey, WallDraft } from '../types'
 
 export interface EditorState {
   mode: EditorMode
@@ -9,7 +9,9 @@ export interface EditorState {
   movingRackId: string | null
   selectedRackId: string | null
   selectedSlotKey: SlotKey | null
+  selectedWallId: string | null
   hoveredRackId: string | null
+  wallDraft: WallDraft | null
   colorMode: ColorMode
   deletingRackIds: string[]
   pointer: { x: number; z: number } | null
@@ -24,6 +26,8 @@ export interface EditorState {
   setMovingRackId: (id: string | null) => void
   selectRack: (id: string | null) => void
   selectSlot: (key: SlotKey | null) => void
+  selectWall: (id: string | null) => void
+  setWallDraft: (draft: WallDraft | null) => void
   setHoveredRack: (id: string | null) => void
   clearHoveredRack: (id: string) => void
   setColorMode: (mode: ColorMode) => void
@@ -45,7 +49,9 @@ export const useEditorStore = create<EditorState>()((set, get) => ({
   movingRackId: null,
   selectedRackId: null,
   selectedSlotKey: null,
+  selectedWallId: null,
   hoveredRackId: null,
+  wallDraft: null,
   colorMode: 'status',
   deletingRackIds: [],
   pointer: null,
@@ -58,11 +64,18 @@ export const useEditorStore = create<EditorState>()((set, get) => ({
       mode,
       ghost: null,
       movingRackId: null,
+      wallDraft: null,
       ...(mode !== 'place' ? { placingTemplateId: null } : {}),
     }),
 
   armPlace: (templateId) =>
-    set({ mode: 'place', placingTemplateId: templateId, ghost: null, movingRackId: null }),
+    set({
+      mode: 'place',
+      placingTemplateId: templateId,
+      ghost: null,
+      movingRackId: null,
+      wallDraft: null,
+    }),
 
   setGhost: (ghost) => {
     const cur = get().ghost
@@ -86,9 +99,19 @@ export const useEditorStore = create<EditorState>()((set, get) => ({
     set((s) => ({
       selectedRackId: id,
       selectedSlotKey: s.selectedRackId === id ? s.selectedSlotKey : null,
+      selectedWallId: id ? null : s.selectedWallId,
     })),
 
   selectSlot: (selectedSlotKey) => set({ selectedSlotKey }),
+
+  selectWall: (selectedWallId) =>
+    set(
+      selectedWallId
+        ? { selectedWallId, selectedRackId: null, selectedSlotKey: null }
+        : { selectedWallId: null },
+    ),
+
+  setWallDraft: (wallDraft) => set({ wallDraft }),
 
   setHoveredRack: (hoveredRackId) => set({ hoveredRackId }),
   clearHoveredRack: (id) => {

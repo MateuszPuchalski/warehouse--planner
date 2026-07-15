@@ -4,6 +4,8 @@ import { Floor } from './Floor'
 import { Racks } from './Racks'
 import { GhostRack } from './GhostRack'
 import { AisleGuides } from './AisleGuides'
+import { Walls } from './Walls'
+import { WallGhost } from './WallGhost'
 
 export function WarehouseCanvas() {
   return (
@@ -42,8 +44,10 @@ export function WarehouseCanvas() {
 
       <Floor />
       <AisleGuides />
+      <Walls />
       <Racks />
       <GhostRack />
+      <WallGhost />
 
       {import.meta.env.DEV && <Stats />}
     </Canvas>

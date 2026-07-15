@@ -8,6 +8,7 @@ import { useT, type TranslationKey } from '../lib/i18n'
 const MODES: { mode: EditorMode; tkey: TranslationKey; key: string; icon: string }[] = [
   { mode: 'select', tkey: 'tool.select', key: 'V', icon: '◇' },
   { mode: 'place', tkey: 'tool.place', key: 'P', icon: '⊞' },
+  { mode: 'wall', tkey: 'tool.wall', key: 'W', icon: '▭' },
   { mode: 'delete', tkey: 'tool.delete', key: 'X', icon: '✕' },
 ]
 
@@ -29,7 +30,7 @@ export function Toolbar() {
     <aside className="flex w-52 shrink-0 flex-col gap-3 overflow-y-auto border-r border-border bg-panel p-2">
       <div>
         <div className="panel-title mb-1.5 px-1">{t('tool.mode')}</div>
-        <div className="grid grid-cols-3 gap-1">
+        <div className="grid grid-cols-2 gap-1">
           {MODES.map((m) => (
             <button
               key={m.mode}

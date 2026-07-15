@@ -1,8 +1,9 @@
 import { create } from 'zustand'
 import { temporal } from 'zundo'
-import type { FloorConfig, RackRotation, SlotOverride, WarehouseLayout } from '../types'
+import type { FloorConfig, RackRotation, SlotOverride, Wall, WarehouseLayout } from '../types'
 import { newId } from '../lib/ids'
 import { parseSlotKey } from '../lib/rackGeometry'
+import { makePerimeterWalls } from '../lib/walls'
 import { loadAutosave, seedLayout } from '../lib/persistence'
 
 export interface WarehouseState {
@@ -19,6 +20,11 @@ export interface WarehouseState {
   updateFloor: (patch: Partial<FloorConfig>) => void
   setLayoutName: (name: string) => void
   clearRacks: () => void
+  addWall: (wall: Omit<Wall, 'id'>) => string
+  updateWall: (id: string, patch: Partial<Omit<Wall, 'id'>>) => void
+  deleteWall: (id: string) => void
+  clearWalls: () => void
+  buildPerimeterWalls: () => void
   replaceLayout: (layout: WarehouseLayout) => void
 }
 
@@ -161,11 +167,63 @@ export const useWarehouseStore = create<WarehouseState>()(
       },
 
       updateFloor: (patch) =>
-        set((s) => ({ layout: touch({ ...s.layout, floor: { ...s.layout.floor, ...patch } }) })),
+        set((s) => {
+          const floor = { ...s.layout.floor, ...patch }
+          // Keep the boundary walls in sync when the warehouse dimensions change.
+          const dimsChanged =
+            floor.widthM !== s.layout.floor.widthM ||
+            floor.depthM !== s.layout.floor.depthM ||
+            floor.cellSize !== s.layout.floor.cellSize
+          let walls = s.layout.walls
+          if (dimsChanged && Object.values(walls).some((w) => w.perimeter)) {
+            walls = { ...walls }
+            for (const [id, w] of Object.entries(walls)) if (w.perimeter) delete walls[id]
+            for (const w of makePerimeterWalls(floor)) walls[w.id] = w
+          }
+          return { layout: touch({ ...s.layout, floor, walls }) }
+        }),
 
       setLayoutName: (name) => set((s) => ({ layout: touch({ ...s.layout, name }) })),
 
       clearRacks: () => set((s) => ({ layout: touch({ ...s.layout, racks: {} }) })),
+
+      addWall: (wall) => {
+        const id = newId()
+        set((s) => ({
+          layout: touch({ ...s.layout, walls: { ...s.layout.walls, [id]: { ...wall, id } } }),
+        }))
+        return id
+      },
+
+      updateWall: (id, patch) =>
+        set((s) => {
+          const wall = s.layout.walls[id]
+          if (!wall) return s
+          return {
+            layout: touch({
+              ...s.layout,
+              walls: { ...s.layout.walls, [id]: { ...wall, ...patch } },
+            }),
+          }
+        }),
+
+      deleteWall: (id) =>
+        set((s) => {
+          if (!s.layout.walls[id]) return s
+          const walls = { ...s.layout.walls }
+          delete walls[id]
+          return { layout: touch({ ...s.layout, walls }) }
+        }),
+
+      clearWalls: () => set((s) => ({ layout: touch({ ...s.layout, walls: {} }) })),
+
+      buildPerimeterWalls: () =>
+        set((s) => {
+          const walls = { ...s.layout.walls }
+          for (const [id, w] of Object.entries(walls)) if (w.perimeter) delete walls[id]
+          for (const w of makePerimeterWalls(s.layout.floor)) walls[w.id] = w
+          return { layout: touch({ ...s.layout, walls }) }
+        }),
 
       replaceLayout: (layout) => set({ layout: touch(layout) }),
     }),
