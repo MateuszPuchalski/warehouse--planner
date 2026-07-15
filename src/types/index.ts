@@ -7,7 +7,7 @@ export type SlotStatus = 'empty' | 'ok' | 'warning' | 'overweight' | 'blocked'
 
 export type EditorMode = 'select' | 'place' | 'delete' | 'wall'
 
-export type ColorMode = 'status' | 'utilization' | 'none'
+export type ColorMode = 'status' | 'utilization' | 'stock' | 'none'
 
 export interface SlotDefaults {
   maxWeightKg: number
@@ -45,6 +45,8 @@ export interface RackInstance {
   id: string
   templateId: string
   name?: string
+  /** Physical rack code from the ERP location system, e.g. "A01" (line A, rack 01). */
+  code?: string
   /** Grid coordinates of the rack center (integer cells, world = grid * cellSize). */
   gridX: number
   gridZ: number
@@ -134,4 +136,43 @@ export interface WallDraft {
   x2: number
   z2: number
   valid: boolean
+}
+
+// ---------- ERP (Subiekt GT) stock ----------
+
+/**
+ * One shelf address parsed from a Subiekt location code like "A01-02-03":
+ * line letter + rack number ("A01"), then shelf/level, then column/bay.
+ * NOTE: the code order is level-then-bay; `bay`/`level` here are 0-based
+ * and already in the app's convention (slot keys are `bay:level`).
+ */
+export interface ParsedLocation {
+  rackCode: string
+  bay: number
+  level: number
+}
+
+/** One product row imported from Subiekt GT. */
+export interface StockItem {
+  symbol: string
+  name: string
+  /** Total stock quantity (not split when the item sits in several locations). */
+  quantity: number
+  unit?: string
+  /** Raw location field as exported, e.g. "A05-01-01 PALETA65 D02-04-06". */
+  locationRaw: string
+  /** Every rack-code address found in the raw field. */
+  locations: ParsedLocation[]
+  /** Non-rack tokens from the field (pallets, boxes: "PALETA65", "KT6", …). */
+  otherLocations: string[]
+}
+
+export type StockSource = 'file' | 'bridge'
+
+export interface StockState {
+  items: StockItem[]
+  importedAt: string | null
+  source: StockSource | null
+  /** Phase B: URL of the LAN bridge service exposing GET /api/stock. */
+  bridgeUrl: string
 }

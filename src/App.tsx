@@ -18,6 +18,7 @@ import { Inspector } from './ui/Inspector'
 import { StatusBar } from './ui/StatusBar'
 import { TemplateEditor } from './ui/TemplateEditor'
 import { PresetManager } from './ui/PresetManager'
+import { SubiektImport } from './ui/SubiektImport'
 
 function Toast() {
   const toast = useEditorStore((s) => s.toast)
@@ -48,6 +49,7 @@ function isTypingTarget(el: EventTarget | null): boolean {
 export default function App() {
   const editingTemplateId = useEditorStore((s) => s.editingTemplateId)
   const showPresetManager = useEditorStore((s) => s.showPresetManager)
+  const showSubiektImport = useEditorStore((s) => s.showSubiektImport)
   const lang = useI18nStore((s) => s.lang)
 
   // Keep the document language and title in sync with the UI language.
@@ -128,6 +130,7 @@ export default function App() {
       <StatusBar />
       {editingTemplateId !== null && <TemplateEditor key={editingTemplateId} />}
       {showPresetManager && <PresetManager />}
+      {showSubiektImport && <SubiektImport />}
       <Toast />
     </div>
   )

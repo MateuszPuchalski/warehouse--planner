@@ -5,6 +5,8 @@ import { useEditorStore } from '../store/useEditorStore'
 import { parseSlotKey, rackStats, resolveSlot } from '../lib/rackGeometry'
 import { rotateGhostOrSelection, requestDelete } from '../lib/editorActions'
 import { wallLengthM } from '../lib/walls'
+import { normalizeUserRackCode } from '../lib/locationCode'
+import { useRackStock } from '../store/useStockStore'
 import { statusLabel, useT } from '../lib/i18n'
 import { SlotGrid } from './SlotGrid'
 
@@ -134,6 +136,7 @@ function SlotEditor({ rackId, slotKey }: { rackId: string; slotKey: string }) {
   const template = useWarehouseStore((s) => (rack ? s.layout.templates[rack.templateId] : undefined))
   const updateSlot = useWarehouseStore((s) => s.updateSlot)
   const resetSlot = useWarehouseStore((s) => s.resetSlot)
+  const stock = useRackStock(rack?.code)
   const t = useT()
 
   const { bay, level } = parseSlotKey(slotKey)
@@ -221,6 +224,23 @@ function SlotEditor({ rackId, slotKey }: { rackId: string; slotKey: string }) {
           {t('slot.reset')}
         </button>
       </div>
+
+      {stock?.[slotKey] && stock[slotKey].length > 0 && (
+        <div className="flex flex-col gap-1 rounded-md border border-accent/30 bg-bg p-2">
+          <div className="panel-title">{t('slot.subiektTitle')}</div>
+          {stock[slotKey].map((item) => (
+            <div key={item.symbol} className="text-[11px]">
+              <span className="font-medium">{item.symbol}</span>
+              <span className="text-muted"> — {item.name}</span>
+              <div className="text-muted">
+                {item.quantity} {item.unit ?? ''}
+                {item.locations.length > 1 && <> · {t('slot.multiLocation', { n: item.locations.length })}</>}
+              </div>
+            </div>
+          ))}
+          <div className="text-[10px] text-muted">{t('slot.subiektHint')}</div>
+        </div>
+      )}
     </div>
   )
 }
@@ -231,6 +251,7 @@ function RackPanel({ rackId }: { rackId: string }) {
   const cellSize = useWarehouseStore((s) => s.layout.floor.cellSize)
   const updateRackMeta = useWarehouseStore((s) => s.updateRackMeta)
   const selectedSlotKey = useEditorStore((s) => s.selectedSlotKey)
+  const stock = useRackStock(rack?.code)
   const t = useT()
 
   const template = rack ? templates[rack.templateId] : undefined
@@ -238,12 +259,28 @@ function RackPanel({ rackId }: { rackId: string }) {
     () => (rack && template ? rackStats(template, rack) : null),
     [rack, template],
   )
+  const stockCount = useMemo(
+    () => (stock ? new Set(Object.values(stock).flat().map((i) => i.symbol)).size : 0),
+    [stock],
+  )
 
   if (!rack || !template || !stats) return null
 
   return (
     <div className="flex flex-col gap-3">
       <div className="panel-title">{t('rack.title')}</div>
+
+      <label className="flex items-center justify-between gap-2 text-xs">
+        <span className="text-muted">{t('rack.code')}</span>
+        <input
+          className="field w-36"
+          value={rack.code ?? ''}
+          placeholder="A01"
+          onChange={(e) =>
+            updateRackMeta(rackId, { code: normalizeUserRackCode(e.target.value) || undefined })
+          }
+        />
+      </label>
 
       <label className="flex items-center justify-between gap-2 text-xs">
         <span className="text-muted">{t('rack.name')}</span>
@@ -254,6 +291,10 @@ function RackPanel({ rackId }: { rackId: string }) {
           onChange={(e) => updateRackMeta(rackId, { name: e.target.value || undefined })}
         />
       </label>
+
+      {stockCount > 0 && (
+        <div className="text-[11px] text-accent">{t('rack.stockCount', { n: stockCount })}</div>
+      )}
 
       <label className="flex items-center justify-between gap-2 text-xs">
         <span className="text-muted">{t('rack.template')}</span>

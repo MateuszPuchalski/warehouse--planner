@@ -5,6 +5,7 @@ import type { RackInstance, RackTemplate } from '../types'
 import { allSlots, getSlotCell, parseSlotKey } from '../lib/rackGeometry'
 import { slotColor } from '../lib/colorModes'
 import { useEditorStore } from '../store/useEditorStore'
+import { useRackStock } from '../store/useStockStore'
 import { boxGeo, slotMat } from './materials'
 
 const tmpMat4 = new THREE.Matrix4()
@@ -21,6 +22,7 @@ export function SlotCells({ rack, template }: { rack: RackInstance; template: Ra
   )
   const ref = useRef<THREE.InstancedMesh>(null)
   const slots = useMemo(() => allSlots(template, rack), [template, rack])
+  const stock = useRackStock(rack.code)
   const count = template.bays * template.levels
 
   useLayoutEffect(() => {
@@ -35,11 +37,11 @@ export function SlotCells({ rack, template }: { rack: RackInstance; template: Ra
         tmpScale.set(cell.scale[0], cell.scale[1], cell.scale[2]),
       )
       mesh.setMatrixAt(i, tmpMat4)
-      mesh.setColorAt(i, tmpColor.set(slotColor(slot, colorMode)))
+      mesh.setColorAt(i, tmpColor.set(slotColor(slot, colorMode, stock?.[slot.key]?.length ?? 0)))
     }
     mesh.instanceMatrix.needsUpdate = true
     if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true
-  }, [slots, template, colorMode])
+  }, [slots, template, colorMode, stock])
 
   const selectedCell = useMemo(() => {
     if (!selectedSlotKey) return null

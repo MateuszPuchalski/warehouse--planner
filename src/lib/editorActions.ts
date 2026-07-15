@@ -153,6 +153,10 @@ export function escapeAction(): void {
     ed.setShowPresetManager(false)
     return
   }
+  if (ed.showSubiektImport) {
+    ed.setShowSubiektImport(false)
+    return
+  }
   if (ed.mode !== 'select') {
     ed.setMode('select')
     return

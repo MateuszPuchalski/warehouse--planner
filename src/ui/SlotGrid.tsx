@@ -4,6 +4,7 @@ import { allSlots } from '../lib/rackGeometry'
 import { slotColor } from '../lib/colorModes'
 import { statusLabel, useT } from '../lib/i18n'
 import { useEditorStore } from '../store/useEditorStore'
+import { useRackStock } from '../store/useStockStore'
 
 /** 2D bay × level grid mirroring the 3D slot colors — the primary slot-editing surface. */
 export function SlotGrid({ rack, template }: { rack: RackInstance; template: RackTemplate }) {
@@ -14,6 +15,7 @@ export function SlotGrid({ rack, template }: { rack: RackInstance; template: Rac
 
   const slots = useMemo(() => allSlots(template, rack), [template, rack])
   const byKey = useMemo(() => new Map(slots.map((s) => [s.key, s])), [slots])
+  const stock = useRackStock(rack.code)
 
   // Levels rendered top-down (highest level first).
   const rows: number[] = []
@@ -32,15 +34,23 @@ export function SlotGrid({ rack, template }: { rack: RackInstance; template: Rac
             if (!slot) return null
             const selected = selectedSlotKey === key
             const mode = colorMode === 'none' ? 'status' : colorMode
+            const stockItems = stock?.[key]
+            const stockTip = stockItems?.length
+              ? ` · ${stockItems.map((i) => i.symbol).join(', ')}`
+              : ''
+            const occupied = slot.status !== 'empty' || (stockItems?.length ?? 0) > 0
             return (
               <button
                 key={key}
                 onClick={() => selectSlot(selected ? null : key)}
-                title={`${slot.label} · ${statusLabel(t, slot.status)} · ${slot.currentWeightKg}/${slot.maxWeightKg} kg`}
+                title={`${slot.label} · ${statusLabel(t, slot.status)} · ${slot.currentWeightKg}/${slot.maxWeightKg} kg${stockTip}`}
                 className={`h-6 cursor-pointer rounded-sm transition-transform hover:scale-105 ${
                   selected ? 'ring-2 ring-white' : ''
                 }`}
-                style={{ background: slotColor(slot, mode), opacity: slot.status === 'empty' ? 0.45 : 0.95 }}
+                style={{
+                  background: slotColor(slot, mode, stockItems?.length ?? 0),
+                  opacity: occupied ? 0.95 : 0.45,
+                }}
               />
             )
           }),

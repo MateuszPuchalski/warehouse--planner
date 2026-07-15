@@ -30,6 +30,16 @@ npm run dev     # http://localhost:5173
   floor — the four boundary walls then follow whenever you retype width/depth. Select a
   wall to tweak its height/thickness or delete it; wall height/thickness defaults live in
   the Floor panel.
+- **Subiekt GT import** — load a product export (XLSX or CSV) with a `Lokalizacja`
+  column of codes like `A01-02-03` (line A, rack 01, shelf 02, column 03). The whole
+  warehouse structure is inferred from the codes — how many lines (each line letter =
+  one row of racks), how many racks per line, and each rack's bays × levels from the
+  highest addresses seen — then every slot is filled with its products (multi-SKU and
+  multi-location supported; pallet/box tokens like `PALETA65` are kept but not placed).
+  Stock lives outside the layout document: re-import replaces it wholesale and never
+  touches manual edits or undo history. Racks carry an editable `code` (Inspector) that
+  links them to the ERP; the "Stock" color mode shows occupancy, and the slot editor
+  shows a read-only Subiekt section. CSV auto-detects `;`/`,`/tab and UTF-8/Windows-1250.
 - **Persistence** — autosave to localStorage, named presets, reusable template
   library, JSON export/import with validation. Undo/redo (100 steps).
 - **Languages** — English / Polish (Polski), switchable via the EN/PL selector in
@@ -45,6 +55,16 @@ npm run dev     # http://localhost:5173
 | Del | Delete selected rack or wall |
 | Esc | Close modal / cancel placement / deselect |
 | Ctrl+Z / Ctrl+Y | Undo / redo |
+
+## Subiekt GT — going live later
+
+The import pipeline is `source → StockItem[] → structure inference → apply`, so a live
+connection only swaps the source. The intended next step is a small read-only bridge
+service on the LAN (Node + `mssql`, read-only SQL login) exposing `GET /api/stock` with
+the same JSON shape the file parser produces, reading `tw__Towar` (symbol, name, location
+field — one of `tw_Pole1..8` or `tw_Uwagi`) joined with `tw_Stan` (quantity per magazyn).
+The stock store already persists a bridge URL for a future "Refresh from Subiekt" button.
+Sfera GT is only needed if the planner ever writes back to Subiekt.
 
 ## Stack
 

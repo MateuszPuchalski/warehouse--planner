@@ -4,6 +4,7 @@ import { makePerimeterWalls } from './walls'
 const AUTOSAVE_KEY = 'wp:autosave:v1'
 const PRESETS_KEY = 'wp:presets:v1'
 const TEMPLATE_LIB_KEY = 'wp:templateLib:v1'
+const STOCK_KEY = 'wp:stock:v1'
 
 interface Stored<T> {
   schemaVersion: number
@@ -86,6 +87,9 @@ export function validateLayout(raw: unknown): WarehouseLayout {
     racks[id] = {
       ...r,
       id,
+      ...(typeof r.code === 'string' && r.code.trim()
+        ? { code: r.code.trim().toUpperCase() }
+        : { code: undefined }),
       slotOverrides: typeof r.slotOverrides === 'object' && r.slotOverrides !== null ? r.slotOverrides : {},
     }
   }
@@ -139,6 +143,18 @@ export function loadAutosave(): WarehouseLayout | null {
 
 export function saveAutosave(layout: WarehouseLayout): void {
   writeStored(AUTOSAVE_KEY, layout)
+}
+
+// ---------- Subiekt stock ----------
+
+export function loadStock(): import('../types').StockState | null {
+  const data = readStored<import('../types').StockState>(STOCK_KEY)
+  if (!data || !Array.isArray(data.items)) return null
+  return data
+}
+
+export function saveStock(state: import('../types').StockState): void {
+  writeStored(STOCK_KEY, state)
 }
 
 // ---------- Layout presets ----------
