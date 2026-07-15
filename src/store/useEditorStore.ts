@@ -16,6 +16,7 @@ export interface EditorState {
   deletingRackIds: string[]
   pointer: { x: number; z: number } | null
   showPresetManager: boolean
+  showSubiektImport: boolean
   editingTemplateId: string | null
   toast: { msg: string; kind: 'info' | 'error' } | null
 
@@ -35,6 +36,7 @@ export interface EditorState {
   removeDeleting: (id: string) => void
   setPointer: (p: { x: number; z: number } | null) => void
   setShowPresetManager: (open: boolean) => void
+  setShowSubiektImport: (open: boolean) => void
   openTemplateEditor: (id: string | null) => void
   showToast: (msg: string, kind?: 'info' | 'error') => void
 }
@@ -56,6 +58,7 @@ export const useEditorStore = create<EditorState>()((set, get) => ({
   deletingRackIds: [],
   pointer: null,
   showPresetManager: false,
+  showSubiektImport: false,
   editingTemplateId: null,
   toast: null,
 
@@ -134,6 +137,7 @@ export const useEditorStore = create<EditorState>()((set, get) => ({
   },
 
   setShowPresetManager: (showPresetManager) => set({ showPresetManager }),
+  setShowSubiektImport: (showSubiektImport) => set({ showSubiektImport }),
   openTemplateEditor: (editingTemplateId) => set({ editingTemplateId }),
 
   showToast: (msg, kind = 'info') => {

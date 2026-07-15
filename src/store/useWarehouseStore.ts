@@ -12,7 +12,7 @@ export interface WarehouseState {
   moveRack: (id: string, gridX: number, gridZ: number) => void
   rotateRack: (id: string) => void
   deleteRack: (id: string) => void
-  updateRackMeta: (id: string, patch: { name?: string; templateId?: string }) => void
+  updateRackMeta: (id: string, patch: { name?: string; templateId?: string; code?: string }) => void
   updateSlot: (rackId: string, key: string, patch: SlotOverride) => void
   resetSlot: (rackId: string, key: string) => void
   upsertTemplate: (t: import('../types').RackTemplate) => void
@@ -25,6 +25,17 @@ export interface WarehouseState {
   deleteWall: (id: string) => void
   clearWalls: () => void
   buildPerimeterWalls: () => void
+  /**
+   * Apply an auto-build plan (from Subiekt import) in ONE undoable step:
+   * merge templates, optionally grow the floor, upgrade undersized auto racks
+   * to bigger templates, and add the new racks.
+   */
+  applyGenerated: (plan: {
+    templates: import('../types').RackTemplate[]
+    racks: Omit<import('../types').RackInstance, 'id'>[]
+    rackUpgrades: { rackId: string; templateId: string }[]
+    floorPatch?: Partial<FloorConfig>
+  }) => void
   replaceLayout: (layout: WarehouseLayout) => void
 }
 
@@ -90,10 +101,12 @@ export const useWarehouseStore = create<WarehouseState>()(
         set((s) => {
           const rack = s.layout.racks[id]
           if (!rack) return s
+          const merged = { ...rack, ...patch }
+          if ('code' in patch && !patch.code) merged.code = undefined
           return {
             layout: touch({
               ...s.layout,
-              racks: { ...s.layout.racks, [id]: { ...rack, ...patch } },
+              racks: { ...s.layout.racks, [id]: merged },
             }),
           }
         }),
@@ -223,6 +236,29 @@ export const useWarehouseStore = create<WarehouseState>()(
           for (const [id, w] of Object.entries(walls)) if (w.perimeter) delete walls[id]
           for (const w of makePerimeterWalls(s.layout.floor)) walls[w.id] = w
           return { layout: touch({ ...s.layout, walls }) }
+        }),
+
+      applyGenerated: (plan) =>
+        set((s) => {
+          const floor = { ...s.layout.floor, ...plan.floorPatch }
+          const templates = { ...s.layout.templates }
+          for (const t of plan.templates) templates[t.id] = t
+          const racks = { ...s.layout.racks }
+          for (const u of plan.rackUpgrades) {
+            const rack = racks[u.rackId]
+            if (rack && templates[u.templateId]) racks[u.rackId] = { ...rack, templateId: u.templateId }
+          }
+          for (const r of plan.racks) {
+            const id = newId()
+            racks[id] = { ...r, id }
+          }
+          let walls = s.layout.walls
+          if (plan.floorPatch && Object.values(walls).some((w) => w.perimeter)) {
+            walls = { ...walls }
+            for (const [id, w] of Object.entries(walls)) if (w.perimeter) delete walls[id]
+            for (const w of makePerimeterWalls(floor)) walls[w.id] = w
+          }
+          return { layout: touch({ ...s.layout, floor, templates, racks, walls }) }
         }),
 
       replaceLayout: (layout) => set({ layout: touch(layout) }),

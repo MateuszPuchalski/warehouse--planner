@@ -14,6 +14,7 @@ export function TopBar() {
   const colorMode = useEditorStore((s) => s.colorMode)
   const setColorMode = useEditorStore((s) => s.setColorMode)
   const setShowPresetManager = useEditorStore((s) => s.setShowPresetManager)
+  const setShowSubiektImport = useEditorStore((s) => s.setShowSubiektImport)
   const showToast = useEditorStore((s) => s.showToast)
   const lang = useI18nStore((s) => s.lang)
   const setLang = useI18nStore((s) => s.setLang)
@@ -71,13 +72,17 @@ export function TopBar() {
           >
             <option value="status">{t('top.color.status')}</option>
             <option value="utilization">{t('top.color.utilization')}</option>
+            <option value="stock">{t('top.color.stock')}</option>
             <option value="none">{t('top.color.none')}</option>
           </select>
         </label>
 
         <span className="mx-1 h-5 w-px bg-border" />
 
-        <button className="btn btn-accent" onClick={() => setShowPresetManager(true)}>
+        <button className="btn btn-accent" onClick={() => setShowSubiektImport(true)}>
+          {t('top.subiekt')}
+        </button>
+        <button className="btn" onClick={() => setShowPresetManager(true)}>
           {t('top.presets')}
         </button>
         <button className="btn" onClick={() => exportLayoutFile(useWarehouseStore.getState().layout)}>
