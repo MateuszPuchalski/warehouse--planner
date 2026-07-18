@@ -1,10 +1,11 @@
-import type { GhostState, RackRotation, WallDraft } from '../types'
+import type { GhostState, RackRotation, WallDraft, ZoneDraft } from '../types'
 import { useWarehouseStore, undo, redo } from '../store/useWarehouseStore'
 import { useEditorStore } from '../store/useEditorStore'
-import { clampGridCenter, gridToWorld } from './grid'
+import { clampGridCenter, gridToWorld, worldToGrid } from './grid'
 import { getFootprint } from './rackGeometry'
 import { isPlacementValid } from './collision'
 import { MIN_WALL_CELLS, snapWallSegment } from './walls'
+import { MIN_ZONE_CELLS } from './zones'
 import { t } from './i18n'
 
 /** Snap a candidate footprint to the grid, clamp it to the floor and check validity. */
@@ -110,6 +111,47 @@ export function commitWallDraft(): void {
   ed.selectWall(id)
 }
 
+/** Snap a dragged zone rectangle to the grid and clamp it to the floor. */
+export function computeZoneDraft(
+  worldX1: number,
+  worldZ1: number,
+  worldX2: number,
+  worldZ2: number,
+): ZoneDraft {
+  const { floor } = useWarehouseStore.getState().layout
+  const cell = floor.cellSize
+  const hwG = floor.widthM / 2 / cell
+  const hdG = floor.depthM / 2 / cell
+  const clampX = (g: number) => Math.max(-hwG, Math.min(hwG, g))
+  const clampZ = (g: number) => Math.max(-hdG, Math.min(hdG, g))
+  const draft = {
+    x1: clampX(worldToGrid(worldX1, cell)),
+    z1: clampZ(worldToGrid(worldZ1, cell)),
+    x2: clampX(worldToGrid(worldX2, cell)),
+    z2: clampZ(worldToGrid(worldZ2, cell)),
+  }
+  const valid =
+    Math.abs(draft.x2 - draft.x1) >= MIN_ZONE_CELLS && Math.abs(draft.z2 - draft.z1) >= MIN_ZONE_CELLS
+  return { ...draft, valid }
+}
+
+/** Commit the current zone draft as a new zone. */
+export function commitZoneDraft(): void {
+  const ed = useEditorStore.getState()
+  const d = ed.zoneDraft
+  ed.setZoneDraft(null)
+  if (!d || !d.valid) return
+  const id = useWarehouseStore.getState().addZone({
+    x1: d.x1,
+    z1: d.z1,
+    x2: d.x2,
+    z2: d.z2,
+    label: t('zone.defaultLabel'),
+    kind: 'custom',
+  })
+  ed.selectZone(id)
+}
+
 /** Start the shrink-out animation; the rack is actually removed in finalizeDelete. */
 export function requestDelete(id: string): void {
   const ed = useEditorStore.getState()
@@ -129,6 +171,11 @@ export function deleteSelected(): void {
   if (ed.selectedWallId) {
     useWarehouseStore.getState().deleteWall(ed.selectedWallId)
     ed.selectWall(null)
+    return
+  }
+  if (ed.selectedZoneId) {
+    useWarehouseStore.getState().deleteZone(ed.selectedZoneId)
+    ed.selectZone(null)
     return
   }
   if (ed.selectedRackId) requestDelete(ed.selectedRackId)
@@ -163,6 +210,10 @@ export function escapeAction(): void {
   }
   if (ed.selectedWallId) {
     ed.selectWall(null)
+    return
+  }
+  if (ed.selectedZoneId) {
+    ed.selectZone(null)
     return
   }
   ed.selectRack(null)

@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { ColorMode, EditorMode, GhostState, RackRotation, SlotKey, WallDraft } from '../types'
+import type { ColorMode, EditorMode, GhostState, RackRotation, SlotKey, WallDraft, ZoneDraft } from '../types'
 
 export interface EditorState {
   mode: EditorMode
@@ -10,8 +10,10 @@ export interface EditorState {
   selectedRackId: string | null
   selectedSlotKey: SlotKey | null
   selectedWallId: string | null
+  selectedZoneId: string | null
   hoveredRackId: string | null
   wallDraft: WallDraft | null
+  zoneDraft: ZoneDraft | null
   colorMode: ColorMode
   deletingRackIds: string[]
   pointer: { x: number; z: number } | null
@@ -28,7 +30,9 @@ export interface EditorState {
   selectRack: (id: string | null) => void
   selectSlot: (key: SlotKey | null) => void
   selectWall: (id: string | null) => void
+  selectZone: (id: string | null) => void
   setWallDraft: (draft: WallDraft | null) => void
+  setZoneDraft: (draft: ZoneDraft | null) => void
   setHoveredRack: (id: string | null) => void
   clearHoveredRack: (id: string) => void
   setColorMode: (mode: ColorMode) => void
@@ -52,8 +56,10 @@ export const useEditorStore = create<EditorState>()((set, get) => ({
   selectedRackId: null,
   selectedSlotKey: null,
   selectedWallId: null,
+  selectedZoneId: null,
   hoveredRackId: null,
   wallDraft: null,
+  zoneDraft: null,
   colorMode: 'status',
   deletingRackIds: [],
   pointer: null,
@@ -68,6 +74,7 @@ export const useEditorStore = create<EditorState>()((set, get) => ({
       ghost: null,
       movingRackId: null,
       wallDraft: null,
+      zoneDraft: null,
       ...(mode !== 'place' ? { placingTemplateId: null } : {}),
     }),
 
@@ -78,6 +85,7 @@ export const useEditorStore = create<EditorState>()((set, get) => ({
       ghost: null,
       movingRackId: null,
       wallDraft: null,
+      zoneDraft: null,
     }),
 
   setGhost: (ghost) => {
@@ -103,6 +111,7 @@ export const useEditorStore = create<EditorState>()((set, get) => ({
       selectedRackId: id,
       selectedSlotKey: s.selectedRackId === id ? s.selectedSlotKey : null,
       selectedWallId: id ? null : s.selectedWallId,
+      selectedZoneId: id ? null : s.selectedZoneId,
     })),
 
   selectSlot: (selectedSlotKey) => set({ selectedSlotKey }),
@@ -110,11 +119,19 @@ export const useEditorStore = create<EditorState>()((set, get) => ({
   selectWall: (selectedWallId) =>
     set(
       selectedWallId
-        ? { selectedWallId, selectedRackId: null, selectedSlotKey: null }
+        ? { selectedWallId, selectedRackId: null, selectedSlotKey: null, selectedZoneId: null }
         : { selectedWallId: null },
     ),
 
+  selectZone: (selectedZoneId) =>
+    set(
+      selectedZoneId
+        ? { selectedZoneId, selectedRackId: null, selectedSlotKey: null, selectedWallId: null }
+        : { selectedZoneId: null },
+    ),
+
   setWallDraft: (wallDraft) => set({ wallDraft }),
+  setZoneDraft: (zoneDraft) => set({ zoneDraft }),
 
   setHoveredRack: (hoveredRackId) => set({ hoveredRackId }),
   clearHoveredRack: (id) => {

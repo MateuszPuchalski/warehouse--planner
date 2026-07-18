@@ -38,7 +38,13 @@ npm run dev     # http://localhost:5173
   badge), or **type the warehouse dimensions** and hit “Build perimeter walls” to wrap the
   floor — the four boundary walls then follow whenever you retype width/depth. Select a
   wall to tweak its height/thickness or delete it; wall height/thickness defaults live in
-  the Floor panel.
+  the Floor panel. Walls can carry **openings** (gates/doors) — add them in the wall
+  inspector with offset/width/height; a height below the wall height renders a lintel,
+  and openings on perimeter walls survive floor resizes (stable wall ids).
+- **Zones** — press **Z** and drag on the floor to mark operational areas (packing,
+  staging, dock, office, custom) as labeled colored rectangles, with an optional
+  translucent volume height. Zones are annotations: they never collide with racks.
+  The built-in layout ships with „Pakowalnia", „Strefa dostaw" and „Przejście".
 - **Subiekt GT import** — load a product export (XLSX or CSV) with a `Lokalizacja`
   column of codes like `A01-02-03` (aisle A, rack 01, column 02, level 03). The whole
   warehouse structure is inferred from the codes — how many lines (each line letter =
@@ -46,7 +52,9 @@ npm run dev     # http://localhost:5173
   highest addresses seen — then every slot is filled with its products (multi-SKU and
   multi-location supported; pallet/box tokens like `PALETA65` are kept but not placed).
   Stock lives outside the layout document: re-import replaces it wholesale and never
-  touches manual edits or undo history. Racks carry an editable `code` (Inspector) that
+  touches manual edits or undo history. By default the import only fills existing
+  racks — location codes with no matching rack are listed and skipped; creating the
+  missing racks is an explicit opt-in checkbox. Racks carry an editable `code` (Inspector) that
   links them to the ERP; the "Stock" color mode shows occupancy, and the slot editor
   shows a read-only Subiekt section. CSV auto-detects `;`/`,`/tab and UTF-8/Windows-1250.
 - **Persistence** — autosave to localStorage, named presets, reusable template
@@ -59,7 +67,7 @@ npm run dev     # http://localhost:5173
 
 | Key | Action |
 | --- | --- |
-| V / P / W / X | Select / Place / Wall / Delete mode |
+| V / P / W / Z / X | Select / Place / Wall / Zone / Delete mode |
 | R | Rotate ghost or selected rack |
 | Del | Delete selected rack or wall |
 | Esc | Close modal / cancel placement / deselect |

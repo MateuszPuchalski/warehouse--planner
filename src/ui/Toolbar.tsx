@@ -9,6 +9,7 @@ const MODES: { mode: EditorMode; tkey: TranslationKey; key: string; icon: string
   { mode: 'select', tkey: 'tool.select', key: 'V', icon: '◇' },
   { mode: 'place', tkey: 'tool.place', key: 'P', icon: '⊞' },
   { mode: 'wall', tkey: 'tool.wall', key: 'W', icon: '▭' },
+  { mode: 'zone', tkey: 'tool.zone', key: 'Z', icon: '▦' },
   { mode: 'delete', tkey: 'tool.delete', key: 'X', icon: '✕' },
 ]
 

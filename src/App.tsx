@@ -85,6 +85,9 @@ export default function App() {
         case 'w':
           useEditorStore.getState().setMode('wall')
           break
+        case 'z':
+          useEditorStore.getState().setMode('zone')
+          break
         case 'x':
           useEditorStore.getState().setMode('delete')
           break

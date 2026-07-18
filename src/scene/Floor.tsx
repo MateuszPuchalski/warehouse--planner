@@ -7,6 +7,8 @@ import {
   computeGhost,
   computeWallDraft,
   commitWallDraft,
+  computeZoneDraft,
+  commitZoneDraft,
   placeAtGhost,
   rotateGhostOrSelection,
 } from '../lib/editorActions'
@@ -35,14 +37,16 @@ export function Floor() {
     }
   }
 
-  /** Drag on the floor in wall mode to draw a wall segment, tracked via window listeners. */
+  /** Drag on the floor in wall/zone mode to draw a segment/rectangle, tracked via window listeners. */
   const onPointerDown = (e: ThreeEvent<PointerEvent>) => {
-    if (mode !== 'wall' || e.button !== 0) return
+    if ((mode !== 'wall' && mode !== 'zone') || e.button !== 0) return
     e.stopPropagation()
     if (controls) controls.enabled = false
+    const drawZone = mode === 'zone'
     const startX = e.point.x
     const startZ = e.point.z
-    editor().setWallDraft(computeWallDraft(startX, startZ, startX, startZ))
+    if (drawZone) editor().setZoneDraft(computeZoneDraft(startX, startZ, startX, startZ))
+    else editor().setWallDraft(computeWallDraft(startX, startZ, startX, startZ))
 
     const onMove = (ev: PointerEvent) => {
       const rect = gl.domElement.getBoundingClientRect()
@@ -53,14 +57,16 @@ export function Floor() {
       wallRaycaster.setFromCamera(tmpNdc, camera)
       if (!wallRaycaster.ray.intersectPlane(FLOOR_PLANE, tmpHit)) return
       editor().setPointer({ x: tmpHit.x, z: tmpHit.z })
-      editor().setWallDraft(computeWallDraft(startX, startZ, tmpHit.x, tmpHit.z))
+      if (drawZone) editor().setZoneDraft(computeZoneDraft(startX, startZ, tmpHit.x, tmpHit.z))
+      else editor().setWallDraft(computeWallDraft(startX, startZ, tmpHit.x, tmpHit.z))
     }
 
     const onUp = () => {
       window.removeEventListener('pointermove', onMove)
       window.removeEventListener('pointerup', onUp)
       if (controls) controls.enabled = true
-      commitWallDraft()
+      if (drawZone) commitZoneDraft()
+      else commitWallDraft()
     }
 
     window.addEventListener('pointermove', onMove)
@@ -73,6 +79,7 @@ export function Floor() {
     else if (mode === 'select') {
       editor().selectRack(null)
       editor().selectWall(null)
+      editor().selectZone(null)
     }
   }
 
