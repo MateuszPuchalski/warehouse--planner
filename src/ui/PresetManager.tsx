@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useWarehouseStore } from '../store/useWarehouseStore'
 import { useEditorStore } from '../store/useEditorStore'
 import { deletePreset, listPresets, savePreset } from '../lib/persistence'
+import { buildSampleWarehouse } from '../lib/sampleWarehouse'
 import { useT } from '../lib/i18n'
 
 export function PresetManager() {
@@ -53,6 +54,29 @@ export function PresetManager() {
           <button className="btn btn-accent" onClick={save}>
             {t('preset.saveCurrent')}
           </button>
+        </div>
+
+        <div className="mt-3">
+          <div className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-muted">
+            {t('preset.builtin')}
+          </div>
+          <div className="flex items-center justify-between gap-2 rounded-md border border-border bg-panel2 px-2 py-1.5">
+            <div className="min-w-0">
+              <div className="truncate text-xs font-medium">{t('preset.sampleName')}</div>
+              <div className="text-[10px] leading-snug text-muted">{t('preset.sampleDesc')}</div>
+            </div>
+            <button
+              className="btn btn-accent shrink-0 !px-1.5 !py-0.5"
+              onClick={() => {
+                const sample = buildSampleWarehouse()
+                replaceLayout(sample)
+                close()
+                showToast(t('toast.presetLoaded', { name: sample.name }))
+              }}
+            >
+              {t('preset.load')}
+            </button>
+          </div>
         </div>
 
         <div className="mt-3 flex max-h-72 flex-col gap-1 overflow-y-auto">

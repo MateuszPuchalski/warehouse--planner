@@ -22,8 +22,13 @@ export interface RackTemplate {
   levels: number
   /** Width of one bay in meters (between upright centers). */
   bayWidth: number
-  /** Height of one level in meters. */
+  /** Height of one level in meters (uniform fallback). */
   levelHeight: number
+  /**
+   * Optional per-level heights in meters, bottom → top. When present and its
+   * length equals `levels`, it overrides the uniform `levelHeight`.
+   */
+  levelHeights?: number[]
   /** Rack depth in meters. */
   depth: number
   /** Visual thickness of upright posts in meters. */

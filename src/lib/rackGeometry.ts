@@ -17,11 +17,35 @@ export function parseSlotKey(key: SlotKey): { bay: number; level: number } {
   return { bay, level }
 }
 
+/** Per-level heights bottom → top; falls back to the uniform levelHeight. */
+export function getLevelHeights(t: RackTemplate): number[] {
+  if (t.levelHeights && t.levelHeights.length === t.levels) return t.levelHeights
+  return Array.from({ length: t.levels }, () => t.levelHeight)
+}
+
+/** Cumulative level bottoms; length levels + 1, last entry = total shelf height. */
+export function getLevelOffsets(t: RackTemplate): number[] {
+  const heights = getLevelHeights(t)
+  const offsets = [0]
+  for (const h of heights) offsets.push(offsets[offsets.length - 1] + h)
+  return offsets
+}
+
+/** Level index containing local height y (clamped to valid levels). */
+export function levelAtHeight(t: RackTemplate, y: number): number {
+  const offsets = getLevelOffsets(t)
+  for (let l = 0; l < t.levels; l++) {
+    if (y < offsets[l + 1]) return l
+  }
+  return t.levels - 1
+}
+
 /** Unrotated local size of a rack built from a template. */
 export function getLocalSize(t: RackTemplate): { w: number; h: number; d: number } {
+  const offsets = getLevelOffsets(t)
   return {
     w: t.bays * t.bayWidth + t.uprightSize,
-    h: t.levels * t.levelHeight + t.beamHeight,
+    h: offsets[t.levels] + t.beamHeight,
     d: t.depth,
   }
 }
@@ -59,7 +83,8 @@ export interface MemberSets {
 /** Local-space transforms of every structural member of a rack. Computed once per template. */
 export function buildMembers(t: RackTemplate): MemberSets {
   const W = t.bays * t.bayWidth
-  const H = t.levels * t.levelHeight
+  const offsets = getLevelOffsets(t)
+  const H = offsets[t.levels]
   const halfD = t.depth / 2 - t.uprightSize / 2
 
   const uprights: Member[] = []
@@ -72,7 +97,7 @@ export function buildMembers(t: RackTemplate): MemberSets {
 
   const beams: Member[] = []
   for (let l = 1; l <= t.levels; l++) {
-    const y = l * t.levelHeight
+    const y = offsets[l]
     for (const z of [-halfD, halfD]) {
       beams.push({ pos: [0, y, z], scale: [W, t.beamHeight, t.uprightSize * 0.9] })
     }
@@ -81,7 +106,7 @@ export function buildMembers(t: RackTemplate): MemberSets {
   const decks: Member[] = []
   for (let l = 1; l < t.levels; l++) {
     decks.push({
-      pos: [0, l * t.levelHeight + t.beamHeight / 2 + 0.015, 0],
+      pos: [0, offsets[l] + t.beamHeight / 2 + 0.015, 0],
       scale: [W - t.uprightSize, 0.03, Math.max(0.1, t.depth - 0.05)],
     })
   }
@@ -92,11 +117,13 @@ export function buildMembers(t: RackTemplate): MemberSets {
 /** Local-space center + size of the interior of one slot cell. */
 export function getSlotCell(t: RackTemplate, bay: number, level: number): Member {
   const W = t.bays * t.bayWidth
+  const offsets = getLevelOffsets(t)
+  const levelH = offsets[level + 1] - offsets[level]
   return {
-    pos: [-W / 2 + (bay + 0.5) * t.bayWidth, level * t.levelHeight + t.levelHeight / 2, 0],
+    pos: [-W / 2 + (bay + 0.5) * t.bayWidth, offsets[level] + levelH / 2, 0],
     scale: [
       Math.max(0.05, t.bayWidth - t.uprightSize - 0.08),
-      Math.max(0.05, t.levelHeight - t.beamHeight - 0.1),
+      Math.max(0.05, levelH - t.beamHeight - 0.1),
       Math.max(0.05, t.depth - 0.12),
     ],
   }

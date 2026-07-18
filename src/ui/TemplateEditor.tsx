@@ -51,17 +51,46 @@ export function TemplateEditor() {
         },
   )
 
+  const [levelHeightsText, setLevelHeightsText] = useState(() =>
+    existing?.levelHeights ? existing.levelHeights.join(', ') : '',
+  )
+
   if (editingId === null) return null
 
   const usedBy = Object.values(racks).filter((r) => r.templateId === draft.id).length
   const patch = (p: Partial<RackTemplate>) => setDraft((d) => ({ ...d, ...p }))
+
+  /** Parse the optional per-level heights list; null = invalid input. */
+  const parseLevelHeights = (): number[] | undefined | null => {
+    const trimmed = levelHeightsText.trim()
+    if (!trimmed) return undefined
+    const values = trimmed.split(/[,;\s]+/).map(Number)
+    if (values.length === 0 || values.some((v) => !Number.isFinite(v) || v <= 0)) return null
+    return values
+  }
+
+  const parsedHeights = parseLevelHeights()
+  const effectiveLevels = parsedHeights ? parsedHeights.length : draft.levels
+  const totalHeight = parsedHeights
+    ? parsedHeights.reduce((a, b) => a + b, 0)
+    : draft.levels * draft.levelHeight
 
   const save = () => {
     if (!draft.name.trim()) {
       showToast(t('toast.templateNeedsName'), 'error')
       return
     }
-    upsertTemplate({ ...draft, name: draft.name.trim() })
+    const heights = parseLevelHeights()
+    if (heights === null) {
+      showToast(t('toast.levelHeightsBad'), 'error')
+      return
+    }
+    upsertTemplate({
+      ...draft,
+      name: draft.name.trim(),
+      levels: heights ? heights.length : draft.levels,
+      levelHeights: heights,
+    })
     openTemplateEditor(null)
     showToast(existing ? t('toast.templateUpdated') : t('toast.templateCreated'))
   }
@@ -98,17 +127,28 @@ export function TemplateEditor() {
               onChange={(e) => patch({ bays: clampInt(Number(e.target.value) || 1, 1, 12) })} />
           </Row>
           <Row label={t('tpl.levels')}>
-            <input type="number" className="field w-20 text-right" value={draft.levels} min={1} max={12} step={1}
-              onChange={(e) => patch({ levels: clampInt(Number(e.target.value) || 1, 1, 12) })} />
+            <input type="number" className="field w-20 text-right" value={effectiveLevels} min={1} max={20} step={1}
+              disabled={!!parsedHeights}
+              onChange={(e) => patch({ levels: clampInt(Number(e.target.value) || 1, 1, 20) })} />
           </Row>
           <Row label={t('tpl.bayWidth')}>
             <input type="number" className="field w-20 text-right" value={draft.bayWidth} min={0.5} max={6} step={0.1}
               onChange={(e) => patch({ bayWidth: clampNum(Number(e.target.value) || 0.5, 0.5, 6) })} />
           </Row>
           <Row label={t('tpl.levelHeight')}>
-            <input type="number" className="field w-20 text-right" value={draft.levelHeight} min={0.3} max={4} step={0.1}
-              onChange={(e) => patch({ levelHeight: clampNum(Number(e.target.value) || 0.3, 0.3, 4) })} />
+            <input type="number" className="field w-20 text-right" value={draft.levelHeight} min={0.1} max={4} step={0.1}
+              disabled={!!parsedHeights}
+              onChange={(e) => patch({ levelHeight: clampNum(Number(e.target.value) || 0.1, 0.1, 4) })} />
           </Row>
+          <label className="flex flex-col gap-1 text-xs">
+            <span className="text-muted">{t('tpl.levelHeights')}</span>
+            <input
+              className={`field w-full ${parseLevelHeights() === null ? '!border-red-500' : ''}`}
+              value={levelHeightsText}
+              placeholder={t('tpl.levelHeightsHint')}
+              onChange={(e) => setLevelHeightsText(e.target.value)}
+            />
+          </label>
           <Row label={t('tpl.depth')}>
             <input type="number" className="field w-20 text-right" value={draft.depth} min={0.4} max={3} step={0.1}
               onChange={(e) => patch({ depth: clampNum(Number(e.target.value) || 0.4, 0.4, 3) })} />
@@ -119,9 +159,9 @@ export function TemplateEditor() {
           </Row>
 
           <div className="text-[11px] text-muted">
-            {t('tpl.slots', { n: draft.bays * draft.levels })} ·{' '}
+            {t('tpl.slots', { n: draft.bays * effectiveLevels })} ·{' '}
             {(draft.bays * draft.bayWidth + draft.uprightSize).toFixed(2)} ×{' '}
-            {(draft.levels * draft.levelHeight).toFixed(2)} × {draft.depth.toFixed(2)} m
+            {totalHeight.toFixed(2)} × {draft.depth.toFixed(2)} m
             {existing && usedBy > 0 && (
               <span className="text-warn"> · {t('tpl.affects', { n: usedBy })}</span>
             )}

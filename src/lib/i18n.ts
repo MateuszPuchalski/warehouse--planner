@@ -30,6 +30,7 @@ const en = {
   'toast.cannotPlace': 'Cannot place here — overlaps a rack or leaves the floor',
   'toast.rotateOverlap': 'Warning: rotated rack now overlaps or leaves the floor',
   'toast.templateNeedsName': 'Template needs a name',
+  'toast.levelHeightsBad': 'Per-level heights must be a list of positive numbers',
   'toast.presetNeedsName': 'Preset needs a name',
   'toast.presetSaved': 'Preset "{name}" saved',
   'toast.presetLoaded': 'Loaded preset "{name}"',
@@ -152,6 +153,8 @@ const en = {
   'tpl.levels': 'Levels',
   'tpl.bayWidth': 'Bay width (m)',
   'tpl.levelHeight': 'Level height (m)',
+  'tpl.levelHeights': 'Per-level heights (m, bottom → top, optional)',
+  'tpl.levelHeightsHint': 'e.g. 1.12, 0.37, 0.47, 1.7',
   'tpl.depth': 'Depth (m)',
   'tpl.defaultWeight': 'Default max weight (kg)',
   'tpl.slots': '{n} slots',
@@ -169,6 +172,10 @@ const en = {
   'preset.empty': 'No presets yet — save the current layout above.',
   'preset.meta': '{racks} racks · {templates} templates',
   'preset.load': 'Load',
+  'preset.builtin': 'Built-in layouts',
+  'preset.sampleName': 'Regały — Mecalux & SSI Schaefer',
+  'preset.sampleDesc':
+    '53 racks from the "Regały" worksheet: 12 Mecalux + 13 SSI Schaefer pallet racks, 15 M7 shelf racks, 13 bin racks.',
   'preset.note':
     'Presets are stored in this browser. Loading a preset replaces the current layout (undoable with Ctrl+Z). Use Export/Import in the top bar to share layouts as files.',
 
@@ -210,6 +217,7 @@ const pl: Record<TranslationKey, string> = {
   'toast.cannotPlace': 'Nie można postawić — koliduje z regałem lub wystaje poza halę',
   'toast.rotateOverlap': 'Uwaga: po obrocie regał koliduje lub wystaje poza halę',
   'toast.templateNeedsName': 'Szablon musi mieć nazwę',
+  'toast.levelHeightsBad': 'Wysokości poziomów muszą być listą liczb dodatnich',
   'toast.presetNeedsName': 'Preset musi mieć nazwę',
   'toast.presetSaved': 'Zapisano preset „{name}”',
   'toast.presetLoaded': 'Wczytano preset „{name}”',
@@ -332,6 +340,8 @@ const pl: Record<TranslationKey, string> = {
   'tpl.levels': 'Poziomy',
   'tpl.bayWidth': 'Szerokość przęsła (m)',
   'tpl.levelHeight': 'Wysokość poziomu (m)',
+  'tpl.levelHeights': 'Wysokości poziomów (m, od dołu, opcjonalne)',
+  'tpl.levelHeightsHint': 'np. 1.12, 0.37, 0.47, 1.7',
   'tpl.depth': 'Głębokość (m)',
   'tpl.defaultWeight': 'Domyślna maks. waga (kg)',
   'tpl.slots': 'slotów: {n}',
@@ -349,6 +359,10 @@ const pl: Record<TranslationKey, string> = {
   'preset.empty': 'Brak presetów — zapisz bieżący układ powyżej.',
   'preset.meta': 'regały: {racks} · szablony: {templates}',
   'preset.load': 'Wczytaj',
+  'preset.builtin': 'Układy wbudowane',
+  'preset.sampleName': 'Regały — Mecalux i SSI Schaefer',
+  'preset.sampleDesc':
+    '53 regały z arkusza „Regały”: 12 paletowych Mecalux + 13 SSI Schaefer, 15 półkowych M7, 13 kuwetowych.',
   'preset.note':
     'Presety są zapisywane w tej przeglądarce. Wczytanie presetu zastępuje bieżący układ (można cofnąć Ctrl+Z). Użyj Eksportu/Importu w górnym pasku, aby udostępniać układy jako pliki.',
 

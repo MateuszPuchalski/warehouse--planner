@@ -84,15 +84,26 @@ export function isPlacementValid(
   return true
 }
 
+/** True when another rack sits inside the gap zone — then the pair doesn't face across an aisle. */
+function zoneBlocked(zone: AABB, all: AABB[], skipA: AABB, skipB: AABB): boolean {
+  return all.some((o) => o !== skipA && o !== skipB && overlaps(zone, o))
+}
+
 /** Soft rule: every facing pair with a gap between flue tolerance and min aisle width. */
 export function validateAisles(layout: WarehouseLayout): AisleViolation[] {
   const entries = rackAABBs(layout)
+  const aabbs = entries.map((e) => e.aabb)
   const minAisle = layout.floor.minAisleWidthM
   const out: AisleViolation[] = []
   for (let i = 0; i < entries.length; i++) {
     for (let j = i + 1; j < entries.length; j++) {
       const g = gapBetween(entries[i].aabb, entries[j].aabb)
-      if (g && g.gap > FLUE_GAP_M + EPS && g.gap < minAisle - EPS) {
+      if (
+        g &&
+        g.gap > FLUE_GAP_M + EPS &&
+        g.gap < minAisle - EPS &&
+        !zoneBlocked(g.zone, aabbs, entries[i].aabb, entries[j].aabb)
+      ) {
         out.push({ rackA: entries[i].id, rackB: entries[j].id, gap: g.gap, axis: g.axis, zone: g.zone })
       }
     }
@@ -123,6 +134,7 @@ export function measureToNeighbors(
   for (const o of others) {
     const g = gapBetween(candidate, o)
     if (!g || g.gap > maxRange) continue
+    if (zoneBlocked(g.zone, others, candidate, o)) continue
     const ok = g.gap >= minAisle || g.gap <= FLUE_GAP_M
     if (g.axis === 'x') {
       const side = (o.minX + o.maxX) / 2 > cx ? 'px' : 'nx'
