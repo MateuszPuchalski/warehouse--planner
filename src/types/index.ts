@@ -5,7 +5,7 @@ export type SlotKey = string
 
 export type SlotStatus = 'empty' | 'ok' | 'warning' | 'overweight' | 'blocked'
 
-export type EditorMode = 'select' | 'place' | 'delete' | 'wall'
+export type EditorMode = 'select' | 'place' | 'delete' | 'wall' | 'zone'
 
 export type ColorMode = 'status' | 'utilization' | 'stock' | 'none'
 
@@ -86,6 +86,18 @@ export interface FloorConfig {
 }
 
 /**
+ * Rectangular cut-out in a wall (gate or door), measured in meters along the
+ * wall from endpoint (x1, z1).
+ */
+export interface WallOpening {
+  /** Distance from endpoint 1 to the opening's near edge, in meters. */
+  offsetM: number
+  widthM: number
+  /** Opening height in meters. Omitted or >= wall heightM = full-height gate (no lintel). */
+  heightM?: number
+}
+
+/**
  * A straight wall segment on the floor plane. Endpoints are in grid coordinates
  * (world = grid * cellSize), matching how racks store their position.
  */
@@ -99,6 +111,38 @@ export interface Wall {
   thicknessM: number
   /** True for the four auto-generated boundary walls, so they can be rebuilt from floor dims. */
   perimeter?: boolean
+  /** Gates/doors cut out of the wall. */
+  openings?: WallOpening[]
+}
+
+export type ZoneKind = 'packing' | 'staging' | 'dock' | 'office' | 'custom'
+
+/**
+ * Labeled axis-aligned floor rectangle marking an operational area (packing,
+ * staging, dock…). Corners in grid coordinates (world = grid * cellSize).
+ * Zones are annotations only — they never participate in collision checks.
+ */
+export interface Zone {
+  id: string
+  x1: number
+  z1: number
+  x2: number
+  z2: number
+  label: string
+  kind?: ZoneKind
+  /** Override of the kind's default color, '#rrggbb'. */
+  color?: string
+  /** 0/undefined = flat floor marking; > 0 = translucent box of this height. */
+  heightM?: number
+}
+
+/** Live preview of a zone rectangle being drawn by dragging. Corners in grid coordinates. */
+export interface ZoneDraft {
+  x1: number
+  z1: number
+  x2: number
+  z2: number
+  valid: boolean
 }
 
 export interface WarehouseLayout {
@@ -108,6 +152,7 @@ export interface WarehouseLayout {
   templates: Record<string, RackTemplate>
   racks: Record<string, RackInstance>
   walls: Record<string, Wall>
+  zones: Record<string, Zone>
   updatedAt: string
 }
 

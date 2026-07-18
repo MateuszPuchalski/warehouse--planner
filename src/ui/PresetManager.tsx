@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useWarehouseStore } from '../store/useWarehouseStore'
 import { useEditorStore } from '../store/useEditorStore'
-import { deletePreset, listPresets, savePreset } from '../lib/persistence'
+import { deletePreset, listPresets, savePreset, validateLayout } from '../lib/persistence'
 import { buildSampleWarehouse } from '../lib/sampleWarehouse'
 import { useT } from '../lib/i18n'
 
@@ -102,7 +102,9 @@ export function PresetManager() {
                 <button
                   className="btn btn-accent !px-1.5 !py-0.5"
                   onClick={() => {
-                    replaceLayout(structuredClone(preset))
+                    // Re-validate so presets saved by older versions get new
+                    // optional collections (zones, wall openings) defaulted.
+                    replaceLayout(validateLayout(structuredClone(preset)))
                     close()
                     showToast(t('toast.presetLoaded', { name: presetName }))
                   }}

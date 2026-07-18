@@ -1,4 +1,4 @@
-import type { FloorConfig, RackInstance, RackRotation, RackTemplate, Wall, WarehouseLayout } from '../types'
+import type { FloorConfig, RackInstance, RackRotation, RackTemplate, Wall, WarehouseLayout, Zone } from '../types'
 import { makePerimeterWalls } from './walls'
 
 /**
@@ -96,8 +96,8 @@ const LINES: Record<string, Placement[]> = {
     { tpl: 'tpl-mec-a', x: -0.85, z: -8.9, rot: 0 },
     { tpl: 'tpl-mec-a', x: 1.95, z: -8.9, rot: 0 },
     { tpl: 'tpl-mec-a', x: 4.75, z: -8.9, rot: 0 },
-    { tpl: 'tpl-mec-a', x: -8.4, z: -7.4, rot: 90 },
-    { tpl: 'tpl-mec-a', x: -8.4, z: -4.6, rot: 90 },
+    { tpl: 'tpl-mec-a', x: -8.4, z: -7.8, rot: 90 },
+    { tpl: 'tpl-mec-a', x: -8.4, z: -5.0, rot: 90 },
     { tpl: 'tpl-mec-a', x: -3.9, z: -5.3, rot: 0 },
     { tpl: 'tpl-mec-a', x: -1.1, z: -5.3, rot: 0 },
     { tpl: 'tpl-mec-b', x: 1.7, z: -5.3, rot: 0 },
@@ -200,11 +200,35 @@ export function buildSampleWarehouse(): WarehouseLayout {
   }
 
   // Interior walls: divider between halls (passage at the east end) and the
-  // packing room in the south-west corner (door gap in its east wall).
+  // packing room in the south-west corner (door gap in its east wall, plus a
+  // door to the C/D aisle cut into its north wall).
   const interior: Wall[] = [
     { id: 'wall-divider', x1: -18.2, z1: 0, x2: 13.2, z2: 0, heightM: floor.wallHeightM, thicknessM: floor.wallThicknessM },
-    { id: 'wall-pack-n', x1: -18.2, z1: 11, x2: 0, z2: 11, heightM: 3, thicknessM: 0.15 },
+    {
+      id: 'wall-pack-n',
+      x1: -18.2,
+      z1: 11,
+      x2: 0,
+      z2: 11,
+      heightM: 3,
+      thicknessM: 0.15,
+      openings: [{ offsetM: 7.8, widthM: 1.0, heightM: 2.1 }],
+    },
     { id: 'wall-pack-e', x1: 0, z1: 11, x2: 0, z2: 16, heightM: 3, thicknessM: 0.15 },
+  ]
+
+  const walls = Object.fromEntries([...makePerimeterWalls(floor), ...interior].map((w) => [w.id, w]))
+  // Delivery gate, 3.53 m wide, next to aisle H: west perimeter wall, which
+  // runs from the south-west corner northwards — the opening spans z −3.6…−0.07.
+  walls['wall-perimeter-w'] = {
+    ...walls['wall-perimeter-w'],
+    openings: [{ offsetM: 9.62, widthM: 3.53, heightM: 4.0 }],
+  }
+
+  const zones: Zone[] = [
+    { id: 'zone-pack', x1: -18.2, z1: 11, x2: 0, z2: 19.1, label: 'Pakowalnia', kind: 'packing' },
+    { id: 'zone-delivery', x1: -17.8, z1: -6.8, x2: -12.6, z2: -0.6, label: 'Strefa dostaw', kind: 'dock' },
+    { id: 'zone-pass', x1: 13.4, z1: -3, x2: 18.2, z2: 3, label: 'Przejście', kind: 'custom' },
   ]
 
   return {
@@ -213,7 +237,8 @@ export function buildSampleWarehouse(): WarehouseLayout {
     floor,
     templates,
     racks,
-    walls: Object.fromEntries([...makePerimeterWalls(floor), ...interior].map((w) => [w.id, w])),
+    walls,
+    zones: Object.fromEntries(zones.map((z) => [z.id, z])),
     updatedAt: new Date().toISOString(),
   }
 }

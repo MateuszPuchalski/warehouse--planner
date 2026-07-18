@@ -6,6 +6,8 @@ import { GhostRack } from './GhostRack'
 import { AisleGuides } from './AisleGuides'
 import { Walls } from './Walls'
 import { WallGhost } from './WallGhost'
+import { Zones } from './Zones'
+import { ZoneGhost } from './ZoneGhost'
 
 export function WarehouseCanvas() {
   return (
@@ -45,9 +47,11 @@ export function WarehouseCanvas() {
       <Floor />
       <AisleGuides />
       <Walls />
+      <Zones />
       <Racks />
       <GhostRack />
       <WallGhost />
+      <ZoneGhost />
 
       {import.meta.env.DEV && <Stats />}
     </Canvas>

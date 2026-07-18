@@ -1,10 +1,11 @@
 import { useMemo } from 'react'
-import type { SlotStatus } from '../types'
+import type { SlotStatus, WallOpening, ZoneKind } from '../types'
 import { useWarehouseStore } from '../store/useWarehouseStore'
 import { useEditorStore } from '../store/useEditorStore'
 import { parseSlotKey, rackStats, resolveSlot } from '../lib/rackGeometry'
 import { rotateGhostOrSelection, requestDelete } from '../lib/editorActions'
 import { wallLengthM } from '../lib/walls'
+import { ZONE_KINDS, zoneColor, zoneRectM } from '../lib/zones'
 import { normalizeUserRackCode } from '../lib/locationCode'
 import { useRackStock } from '../store/useStockStore'
 import { statusLabel, useT } from '../lib/i18n'
@@ -105,6 +106,14 @@ function WallPanel({ wallId }: { wallId: string }) {
 
   if (!wall) return null
 
+  const lengthM = wallLengthM(wall, cellSize)
+  const openings: WallOpening[] = wall.openings ?? []
+
+  const patchOpening = (index: number, patch: Partial<WallOpening>) => {
+    const next = openings.map((o, i) => (i === index ? { ...o, ...patch } : o))
+    updateWall(wallId, { openings: next })
+  }
+
   const remove = () => {
     deleteWall(wallId)
     selectWall(null)
@@ -116,7 +125,7 @@ function WallPanel({ wallId }: { wallId: string }) {
 
       <div className="grid grid-cols-2 gap-1 text-[11px] text-muted">
         <span>
-          {t('wall.length')}: {wallLengthM(wall, cellSize).toFixed(2)} m
+          {t('wall.length')}: {lengthM.toFixed(2)} m
         </span>
         <span>{wall.perimeter ? t('wall.perimeter') : t('wall.custom')}</span>
       </div>
@@ -124,8 +133,114 @@ function WallPanel({ wallId }: { wallId: string }) {
       <NumField label={t('wall.height')} value={wall.heightM} min={0.5} max={20} step={0.5} suffix="m" onChange={(v) => updateWall(wallId, { heightM: v })} />
       <NumField label={t('wall.thickness')} value={wall.thicknessM} min={0.05} max={1} step={0.05} suffix="m" onChange={(v) => updateWall(wallId, { thicknessM: v })} />
 
+      <div className="h-px bg-border" />
+      <div className="panel-title">{t('wall.openings', { n: openings.length })}</div>
+      {openings.map((o, i) => (
+        <div key={i} className="flex flex-col gap-1.5 rounded-md border border-border bg-panel2 p-2">
+          <NumField label={t('wall.openingOffset')} value={o.offsetM} min={0} max={lengthM} step={0.1} suffix="m"
+            onChange={(v) => patchOpening(i, { offsetM: v })} />
+          <NumField label={t('wall.openingWidth')} value={o.widthM} min={0.1} max={lengthM} step={0.1} suffix="m"
+            onChange={(v) => patchOpening(i, { widthM: v })} />
+          <NumField label={t('wall.openingHeight')} value={o.heightM ?? wall.heightM} min={0.3} max={wall.heightM} step={0.1} suffix="m"
+            onChange={(v) => patchOpening(i, { heightM: v >= wall.heightM ? undefined : v })} />
+          <button
+            className="btn btn-danger justify-center !py-0.5"
+            title={t('wall.removeOpeningTip')}
+            onClick={() => updateWall(wallId, { openings: openings.filter((_, j) => j !== i) })}
+          >
+            ✕
+          </button>
+        </div>
+      ))}
+      <button
+        className="btn justify-center"
+        onClick={() =>
+          updateWall(wallId, {
+            openings: [...openings, { offsetM: Math.max(0, (lengthM - 1) / 2), widthM: 1, heightM: Math.min(2.1, wall.heightM) }],
+          })
+        }
+      >
+        {t('wall.addOpening')}
+      </button>
+      <p className="text-[11px] leading-relaxed text-muted">{t('wall.openingsHelp')}</p>
+
       <button className="btn btn-danger justify-center" onClick={remove} title={t('wall.deleteTip')}>
         {t('wall.delete')}
+      </button>
+    </div>
+  )
+}
+
+function ZonePanel({ zoneId }: { zoneId: string }) {
+  const zone = useWarehouseStore((s) => s.layout.zones[zoneId])
+  const cellSize = useWarehouseStore((s) => s.layout.floor.cellSize)
+  const updateZone = useWarehouseStore((s) => s.updateZone)
+  const deleteZone = useWarehouseStore((s) => s.deleteZone)
+  const selectZone = useEditorStore((s) => s.selectZone)
+  const t = useT()
+
+  if (!zone) return null
+  const { w, d } = zoneRectM(zone, cellSize)
+
+  const remove = () => {
+    deleteZone(zoneId)
+    selectZone(null)
+  }
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="panel-title">{t('zone.title')}</div>
+
+      <label className="flex items-center justify-between gap-2 text-xs">
+        <span className="text-muted">{t('zone.label')}</span>
+        <input
+          className="field w-36"
+          value={zone.label}
+          onChange={(e) => updateZone(zoneId, { label: e.target.value })}
+        />
+      </label>
+
+      <label className="flex items-center justify-between gap-2 text-xs">
+        <span className="text-muted">{t('zone.kind')}</span>
+        <select
+          className="field w-36"
+          value={zone.kind ?? 'custom'}
+          onChange={(e) => updateZone(zoneId, { kind: e.target.value as ZoneKind, color: undefined })}
+        >
+          {ZONE_KINDS.map((k) => (
+            <option key={k} value={k}>
+              {t(`zone.kind.${k}` as Parameters<typeof t>[0])}
+            </option>
+          ))}
+        </select>
+      </label>
+
+      <label className="flex items-center justify-between gap-2 text-xs">
+        <span className="text-muted">{t('zone.color')}</span>
+        <input
+          type="color"
+          className="h-6 w-12 cursor-pointer rounded border border-border bg-panel2"
+          value={zoneColor(zone)}
+          onChange={(e) => updateZone(zoneId, { color: e.target.value })}
+        />
+      </label>
+
+      <NumField
+        label={t('zone.height')}
+        value={zone.heightM ?? 0}
+        min={0}
+        max={10}
+        step={0.5}
+        suffix="m"
+        onChange={(v) => updateZone(zoneId, { heightM: v > 0 ? v : undefined })}
+      />
+
+      <div className="text-[11px] text-muted">
+        {t('zone.size')}: {w.toFixed(1)} × {d.toFixed(1)} m
+      </div>
+
+      <button className="btn btn-danger justify-center" onClick={remove} title={t('zone.deleteTip')}>
+        {t('zone.delete')}
       </button>
     </div>
   )
@@ -346,12 +461,15 @@ function RackPanel({ rackId }: { rackId: string }) {
 export function Inspector() {
   const selectedRackId = useEditorStore((s) => s.selectedRackId)
   const selectedWallId = useEditorStore((s) => s.selectedWallId)
+  const selectedZoneId = useEditorStore((s) => s.selectedZoneId)
   return (
     <aside className="w-72 shrink-0 overflow-y-auto border-l border-border bg-panel p-3">
       {selectedRackId ? (
         <RackPanel rackId={selectedRackId} />
       ) : selectedWallId ? (
         <WallPanel wallId={selectedWallId} />
+      ) : selectedZoneId ? (
+        <ZonePanel zoneId={selectedZoneId} />
       ) : (
         <FloorPanel />
       )}

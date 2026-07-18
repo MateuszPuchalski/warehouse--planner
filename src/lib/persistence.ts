@@ -119,6 +119,19 @@ export function validateLayout(raw: unknown): WarehouseLayout {
       for (const k of ['heightM', 'thicknessM'] as const) {
         if (!isFiniteNumber(w[k]) || w[k] <= 0) throw new Error(`Wall "${id}": invalid ${k}`)
       }
+      // Openings are tolerated leniently: keep well-formed entries, drop the rest.
+      const openings = Array.isArray(w.openings)
+        ? w.openings.filter(
+            (o) =>
+              typeof o === 'object' &&
+              o !== null &&
+              isFiniteNumber(o.offsetM) &&
+              o.offsetM >= 0 &&
+              isFiniteNumber(o.widthM) &&
+              o.widthM > 0 &&
+              (o.heightM === undefined || (isFiniteNumber(o.heightM) && o.heightM > 0)),
+          )
+        : []
       walls[id] = {
         id,
         x1: w.x1,
@@ -128,6 +141,32 @@ export function validateLayout(raw: unknown): WarehouseLayout {
         heightM: w.heightM,
         thicknessM: w.thicknessM,
         ...(w.perimeter ? { perimeter: true } : {}),
+        ...(openings.length > 0 ? { openings } : {}),
+      }
+    }
+  }
+
+  const zones: Record<string, import('../types').Zone> = {}
+  if (typeof l.zones === 'object' && l.zones !== null) {
+    for (const [id, z] of Object.entries(l.zones as Record<string, import('../types').Zone>)) {
+      if (typeof z !== 'object' || z === null) throw new Error(`Invalid zone "${id}"`)
+      for (const k of ['x1', 'z1', 'x2', 'z2'] as const) {
+        if (!isFiniteNumber(z[k])) throw new Error(`Zone "${id}": invalid ${k}`)
+      }
+      const kind =
+        z.kind && ['packing', 'staging', 'dock', 'office', 'custom'].includes(z.kind) ? z.kind : undefined
+      const color = typeof z.color === 'string' && /^#[0-9a-f]{6}$/i.test(z.color) ? z.color : undefined
+      const heightM = isFiniteNumber(z.heightM) && z.heightM > 0 ? z.heightM : undefined
+      zones[id] = {
+        id,
+        x1: z.x1,
+        z1: z.z1,
+        x2: z.x2,
+        z2: z.z2,
+        label: typeof z.label === 'string' && z.label.trim() ? z.label : 'Zone',
+        ...(kind ? { kind } : {}),
+        ...(color ? { color } : {}),
+        ...(heightM !== undefined ? { heightM } : {}),
       }
     }
   }
@@ -139,6 +178,7 @@ export function validateLayout(raw: unknown): WarehouseLayout {
     templates,
     racks,
     walls,
+    zones,
     updatedAt: typeof l.updatedAt === 'string' ? l.updatedAt : new Date().toISOString(),
   }
 }
@@ -313,6 +353,7 @@ export function seedLayout(): WarehouseLayout {
     templates: seedTemplates(),
     racks: Object.fromEntries(racks.map((r) => [r.id, r])),
     walls: Object.fromEntries(makePerimeterWalls(floor).map((w) => [w.id, w])),
+    zones: {},
     updatedAt: new Date().toISOString(),
   }
 }

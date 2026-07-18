@@ -33,7 +33,8 @@ export function SubiektImport() {
   const [fileName, setFileName] = useState('')
   const [mapping, setMapping] = useState<ColumnMapping | null>(null)
   const [firstRowIsData, setFirstRowIsData] = useState(false)
-  const [createMissing, setCreateMissing] = useState(true)
+  // Opt-in: by default the import only fills existing racks and never mutates the layout.
+  const [createMissing, setCreateMissing] = useState(false)
 
   const close = () => setShow(false)
 
@@ -75,6 +76,12 @@ export function SubiektImport() {
         ? conversion.items.filter((i) => i.locations.length === 0 && i.otherLocations.length > 0).length
         : 0,
     [conversion],
+  )
+
+  /** Location codes with no matching rack in the layout (would-be-created + unplaceable). */
+  const missingCodes = useMemo(
+    () => (plan ? [...plan.racks.map((r) => r.code ?? '?'), ...plan.stats.unplaced] : []),
+    [plan],
   )
 
   const doImport = () => {
@@ -243,19 +250,35 @@ export function SubiektImport() {
             </div>
 
             {(plan.racks.length > 0 || plan.rackUpgrades.length > 0) && (
-              <label className="mt-2 flex items-center gap-1.5 text-xs">
-                <input
-                  type="checkbox"
-                  checked={createMissing}
-                  onChange={(e) => setCreateMissing(e.target.checked)}
-                />
-                {t('subiekt.createMissing', { n: plan.racks.length })}
-                {plan.floorPatch && (
-                  <span className="text-[10px] text-muted">
-                    {t('subiekt.floorGrow', { w: plan.floorPatch.widthM, d: plan.floorPatch.depthM })}
-                  </span>
+              <>
+                {!createMissing && missingCodes.length > 0 && (
+                  <div className="mt-2 text-[11px] text-warn">
+                    {t('subiekt.skippedMissing', {
+                      n: missingCodes.length,
+                      codes:
+                        missingCodes.slice(0, 5).join(', ') + (missingCodes.length > 5 ? '…' : ''),
+                    })}
+                  </div>
                 )}
-              </label>
+                {!createMissing && plan.rackUpgrades.length > 0 && (
+                  <div className="mt-1 text-[11px] text-muted">
+                    {t('subiekt.skippedUpgrades', { n: plan.rackUpgrades.length })}
+                  </div>
+                )}
+                <label className="mt-2 flex items-center gap-1.5 text-xs">
+                  <input
+                    type="checkbox"
+                    checked={createMissing}
+                    onChange={(e) => setCreateMissing(e.target.checked)}
+                  />
+                  {t('subiekt.createMissing', { n: plan.racks.length })}
+                  {createMissing && plan.floorPatch && (
+                    <span className="text-[10px] text-muted">
+                      {t('subiekt.floorGrow', { w: plan.floorPatch.widthM, d: plan.floorPatch.depthM })}
+                    </span>
+                  )}
+                </label>
+              </>
             )}
 
             <div className="mt-3 flex items-center gap-1.5">

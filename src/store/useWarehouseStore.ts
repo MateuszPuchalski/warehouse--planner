@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { temporal } from 'zundo'
-import type { FloorConfig, RackRotation, SlotOverride, Wall, WarehouseLayout } from '../types'
+import type { FloorConfig, RackRotation, SlotOverride, Wall, WarehouseLayout, Zone } from '../types'
 import { newId } from '../lib/ids'
 import { parseSlotKey } from '../lib/rackGeometry'
 import { makePerimeterWalls } from '../lib/walls'
@@ -25,6 +25,9 @@ export interface WarehouseState {
   deleteWall: (id: string) => void
   clearWalls: () => void
   buildPerimeterWalls: () => void
+  addZone: (zone: Omit<Zone, 'id'>) => string
+  updateZone: (id: string, patch: Partial<Omit<Zone, 'id'>>) => void
+  deleteZone: (id: string) => void
   /**
    * Apply an auto-build plan (from Subiekt import) in ONE undoable step:
    * merge templates, optionally grow the floor, upgrade undersized auto racks
@@ -191,7 +194,7 @@ export const useWarehouseStore = create<WarehouseState>()(
           if (dimsChanged && Object.values(walls).some((w) => w.perimeter)) {
             walls = { ...walls }
             for (const [id, w] of Object.entries(walls)) if (w.perimeter) delete walls[id]
-            for (const w of makePerimeterWalls(floor)) walls[w.id] = w
+            for (const w of makePerimeterWalls(floor, s.layout.walls)) walls[w.id] = w
           }
           return { layout: touch({ ...s.layout, floor, walls }) }
         }),
@@ -234,8 +237,42 @@ export const useWarehouseStore = create<WarehouseState>()(
         set((s) => {
           const walls = { ...s.layout.walls }
           for (const [id, w] of Object.entries(walls)) if (w.perimeter) delete walls[id]
-          for (const w of makePerimeterWalls(s.layout.floor)) walls[w.id] = w
+          for (const w of makePerimeterWalls(s.layout.floor, s.layout.walls)) walls[w.id] = w
           return { layout: touch({ ...s.layout, walls }) }
+        }),
+
+      addZone: (zone) => {
+        const id = newId()
+        set((s) => ({
+          layout: touch({ ...s.layout, zones: { ...s.layout.zones, [id]: { ...zone, id } } }),
+        }))
+        return id
+      },
+
+      updateZone: (id, patch) =>
+        set((s) => {
+          const zone = s.layout.zones[id]
+          if (!zone) return s
+          // Undefined patch values delete the key (e.g. clearing a color override).
+          const merged: Record<string, unknown> = { ...zone }
+          for (const [k, v] of Object.entries(patch)) {
+            if (v === undefined) delete merged[k]
+            else merged[k] = v
+          }
+          return {
+            layout: touch({
+              ...s.layout,
+              zones: { ...s.layout.zones, [id]: merged as unknown as Zone },
+            }),
+          }
+        }),
+
+      deleteZone: (id) =>
+        set((s) => {
+          if (!s.layout.zones[id]) return s
+          const zones = { ...s.layout.zones }
+          delete zones[id]
+          return { layout: touch({ ...s.layout, zones }) }
         }),
 
       applyGenerated: (plan) =>
@@ -256,7 +293,7 @@ export const useWarehouseStore = create<WarehouseState>()(
           if (plan.floorPatch && Object.values(walls).some((w) => w.perimeter)) {
             walls = { ...walls }
             for (const [id, w] of Object.entries(walls)) if (w.perimeter) delete walls[id]
-            for (const w of makePerimeterWalls(floor)) walls[w.id] = w
+            for (const w of makePerimeterWalls(floor, s.layout.walls)) walls[w.id] = w
           }
           return { layout: touch({ ...s.layout, floor, templates, racks, walls }) }
         }),
