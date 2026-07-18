@@ -147,9 +147,9 @@ export interface WallDraft {
 
 /**
  * One shelf address parsed from a Subiekt location code like "A01-02-03":
- * line letter + rack number ("A01"), then shelf/level, then column/bay.
- * NOTE: the code order is level-then-bay; `bay`/`level` here are 0-based
- * and already in the app's convention (slot keys are `bay:level`).
+ * aisle letter + rack number ("A01"), then column/bay, then level.
+ * `bay`/`level` here are 0-based and in the app's convention (slot keys
+ * are `bay:level`).
  */
 export interface ParsedLocation {
   rackCode: string

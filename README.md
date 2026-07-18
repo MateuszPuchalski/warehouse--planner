@@ -40,7 +40,7 @@ npm run dev     # http://localhost:5173
   wall to tweak its height/thickness or delete it; wall height/thickness defaults live in
   the Floor panel.
 - **Subiekt GT import** — load a product export (XLSX or CSV) with a `Lokalizacja`
-  column of codes like `A01-02-03` (line A, rack 01, shelf 02, column 03). The whole
+  column of codes like `A01-02-03` (aisle A, rack 01, column 02, level 03). The whole
   warehouse structure is inferred from the codes — how many lines (each line letter =
   one row of racks), how many racks per line, and each rack's bays × levels from the
   highest addresses seen — then every slot is filled with its products (multi-SKU and
