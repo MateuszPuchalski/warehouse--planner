@@ -50,6 +50,20 @@ export function gapBetween(a: AABB, b: AABB): FacingGap | null {
   return null
 }
 
+/** Floor-plane AABBs of all walls, so gaps split by a wall don't count as aisles. */
+export function wallAABBs(layout: WarehouseLayout): AABB[] {
+  const cs = layout.floor.cellSize
+  return Object.values(layout.walls ?? {}).map((w) => {
+    const half = w.thicknessM / 2
+    return {
+      minX: Math.min(w.x1, w.x2) * cs - half,
+      maxX: Math.max(w.x1, w.x2) * cs + half,
+      minZ: Math.min(w.z1, w.z2) * cs - half,
+      maxZ: Math.max(w.z1, w.z2) * cs + half,
+    }
+  })
+}
+
 function rackAABBs(layout: WarehouseLayout): { id: string; aabb: AABB }[] {
   const out: { id: string; aabb: AABB }[] = []
   for (const r of Object.values(layout.racks)) {
@@ -84,7 +98,7 @@ export function isPlacementValid(
   return true
 }
 
-/** True when another rack sits inside the gap zone — then the pair doesn't face across an aisle. */
+/** True when another rack or a wall sits inside the gap zone — then the pair doesn't face across an aisle. */
 function zoneBlocked(zone: AABB, all: AABB[], skipA: AABB, skipB: AABB): boolean {
   return all.some((o) => o !== skipA && o !== skipB && overlaps(zone, o))
 }
@@ -92,7 +106,7 @@ function zoneBlocked(zone: AABB, all: AABB[], skipA: AABB, skipB: AABB): boolean
 /** Soft rule: every facing pair with a gap between flue tolerance and min aisle width. */
 export function validateAisles(layout: WarehouseLayout): AisleViolation[] {
   const entries = rackAABBs(layout)
-  const aabbs = entries.map((e) => e.aabb)
+  const aabbs = [...entries.map((e) => e.aabb), ...wallAABBs(layout)]
   const minAisle = layout.floor.minAisleWidthM
   const out: AisleViolation[] = []
   for (let i = 0; i < entries.length; i++) {
@@ -127,14 +141,16 @@ export function measureToNeighbors(
   others: AABB[],
   minAisle: number,
   maxRange = 12,
+  blockers: AABB[] = [],
 ): MeasureLine[] {
   const best: Partial<Record<'px' | 'nx' | 'pz' | 'nz', MeasureLine>> = {}
   const cx = (candidate.minX + candidate.maxX) / 2
   const cz = (candidate.minZ + candidate.maxZ) / 2
+  const allBlockers = [...others, ...blockers]
   for (const o of others) {
     const g = gapBetween(candidate, o)
     if (!g || g.gap > maxRange) continue
-    if (zoneBlocked(g.zone, others, candidate, o)) continue
+    if (zoneBlocked(g.zone, allBlockers, candidate, o)) continue
     const ok = g.gap >= minAisle || g.gap <= FLUE_GAP_M
     if (g.axis === 'x') {
       const side = (o.minX + o.maxX) / 2 > cx ? 'px' : 'nx'

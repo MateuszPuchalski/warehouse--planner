@@ -46,7 +46,7 @@ const en = {
   'subiekt.title': 'Import stock from Subiekt GT',
   'subiekt.pickFile': 'Choose XLSX / CSV file…',
   'subiekt.help':
-    'Export the product list from Subiekt GT (with the Lokalizacja column, e.g. "A01-02-03" = line A, rack 01, shelf 02, column 03) to Excel or CSV and load it here. Rack sizes and rows are inferred from the codes; slots are filled with the products.',
+    'Export the product list from Subiekt GT (with the Lokalizacja column, e.g. "A01-02-03" = aisle A, rack 01, column 02, level 03) to Excel or CSV and load it here. Rack sizes and rows are inferred from the codes; slots are filled with the products.',
   'subiekt.current': 'Currently loaded: {n} items (imported {date}).',
   'subiekt.encoding': 'encoding: {enc}',
   'subiekt.col.symbol': 'Symbol',
@@ -233,7 +233,7 @@ const pl: Record<TranslationKey, string> = {
   'subiekt.title': 'Import stanów z Subiekt GT',
   'subiekt.pickFile': 'Wybierz plik XLSX / CSV…',
   'subiekt.help':
-    'Wyeksportuj listę towarów z Subiekta GT (z kolumną Lokalizacja, np. „A01-02-03” = linia A, regał 01, półka 02, kolumna 03) do Excela lub CSV i wczytaj tutaj. Rozmiary regałów i rzędy są wyliczane z kodów; sloty wypełniane są towarami.',
+    'Wyeksportuj listę towarów z Subiekta GT (z kolumną Lokalizacja, np. „A01-02-03” = alejka A, regał 01, kolumna 02, poziom 03) do Excela lub CSV i wczytaj tutaj. Rozmiary regałów i rzędy są wyliczane z kodów; sloty wypełniane są towarami.',
   'subiekt.current': 'Obecnie wczytane: {n} pozycji (import {date}).',
   'subiekt.encoding': 'kodowanie: {enc}',
   'subiekt.col.symbol': 'Symbol',

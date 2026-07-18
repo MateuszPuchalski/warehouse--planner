@@ -1,10 +1,9 @@
 import type { ParsedLocation } from '../types'
 
 /**
- * Subiekt location code: `<Line><RackNo>-<Level>-<Bay>`, e.g. "A01-02-03" =
- * line A, rack 01, shelf (półka) 02, column (kolumna) 03. All parts 1-based.
- * The middle part is the LEVEL and the last part is the BAY — the app's slot
- * keys are `bay:level`, so the order swap is confined to this module.
+ * Subiekt location code: `<Aisle><RackNo>-<Column>-<Level>`, e.g. "A01-02-03" =
+ * aisle A, rack 01, column (kolumna) 02, level (poziom) 03. All parts 1-based.
+ * The middle part is the COLUMN (app: bay) and the last part is the LEVEL.
  */
 const LOC_RE = /^([A-Z])(\d{1,3})-(\d{1,3})-(\d{1,3})$/
 
@@ -22,9 +21,9 @@ export function normalizeUserRackCode(raw: string): string {
 export function parseLocationCode(token: string): ParsedLocation | null {
   const m = LOC_RE.exec(token.trim().toUpperCase())
   if (!m) return null
-  const [, line, rackNo, levelStr, bayStr] = m
-  const level = Number(levelStr) - 1
+  const [, line, rackNo, bayStr, levelStr] = m
   const bay = Number(bayStr) - 1
+  const level = Number(levelStr) - 1
   if (level < 0 || bay < 0) return null
   return { rackCode: normalizeRackCode(line, Number(rackNo)), bay, level }
 }

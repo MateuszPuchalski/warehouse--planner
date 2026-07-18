@@ -5,7 +5,7 @@ import * as THREE from 'three'
 import { useWarehouseStore } from '../store/useWarehouseStore'
 import { useEditorStore } from '../store/useEditorStore'
 import { aabbFor } from '../lib/rackGeometry'
-import { measureToNeighbors } from '../lib/collision'
+import { measureToNeighbors, wallAABBs } from '../lib/collision'
 import { gridToWorld } from '../lib/grid'
 import { RackFrame } from './RackFrame'
 import { ghostValidMat, ghostInvalidMat } from './materials'
@@ -38,7 +38,7 @@ export function GhostRack() {
         return t ? aabbFor(r.gridX, r.gridZ, r.rotation, t, layout.floor.cellSize) : null
       })
       .filter((a): a is NonNullable<typeof a> => a !== null)
-    return measureToNeighbors(aabb, others, layout.floor.minAisleWidthM)
+    return measureToNeighbors(aabb, others, layout.floor.minAisleWidthM, 12, wallAABBs(layout))
   }, [ghost, template, layout, movingRackId])
 
   if (!ghost || !template) return null
