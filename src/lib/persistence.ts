@@ -75,7 +75,22 @@ export function validateLayout(raw: unknown): WarehouseLayout {
     if (!t.defaultSlot || !isFiniteNumber(t.defaultSlot.maxWeightKg)) {
       throw new Error(`Template "${id}": invalid defaultSlot`)
     }
-    templates[id] = { ...t, id, name: typeof t.name === 'string' ? t.name : id }
+    let levelHeights: number[] | undefined
+    if (t.levelHeights !== undefined) {
+      if (!Array.isArray(t.levelHeights) || t.levelHeights.length !== t.levels) {
+        throw new Error(`Template "${id}": levelHeights must be an array of ${t.levels} entries`)
+      }
+      for (const h of t.levelHeights) {
+        if (!isFiniteNumber(h) || h <= 0) throw new Error(`Template "${id}": invalid levelHeights entry`)
+      }
+      levelHeights = [...t.levelHeights]
+    }
+    templates[id] = {
+      ...t,
+      id,
+      name: typeof t.name === 'string' ? t.name : id,
+      ...(levelHeights ? { levelHeights } : { levelHeights: undefined }),
+    }
   }
 
   const racks: Record<string, RackInstance> = {}

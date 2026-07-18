@@ -18,12 +18,21 @@ npm run dev     # http://localhost:5173
   smooth pop-in / shrink-out animations.
 - **Modular rack templates** — bays × levels × dimensions + default slot weight;
   editing a template updates every placed rack. Three built-ins seeded on first run.
+  Templates can optionally define **per-level heights** (bottom → top, e.g.
+  `1.12, 0.37, 0.47, 0.37, 1.175, 1.7`) instead of one uniform level height, so
+  mixed pallet + shelf racking renders true to size.
+- **Built-in layout: „Regały — Mecalux & SSI Schaefer”** — a real warehouse
+  recreated from a rack survey worksheet, loadable from the Presets dialog:
+  12 Mecalux 5.5 m pallet racks, 13 SSI Schaefer pallet racks, 15 Mecalux M7
+  shelf racks and 13 bin (kuweta) racks — 53 racks / 1 824 slots in six coded
+  lines (A–F) with validated ≥3 m aisles (`src/lib/sampleWarehouse.ts`).
 - **Slot configuration** — click a selected rack (3D) or the inspector grid (2D) to
   edit any slot: label, max weight, current weight, status override. Color modes:
   status (empty/ok/near-capacity/overweight/blocked) or continuous utilization.
 - **Aisle validation** — facing racks closer than the minimum aisle width get a red
   zone + distance badge; live distance guides while placing. Gaps ≤ 0.5 m count as
-  intentional back-to-back (flue) placement.
+  intentional back-to-back (flue) placement, and a gap that contains another rack
+  (e.g. second neighbors in a touching line) is not treated as an aisle.
 - **Walls** — two ways to add them: pick the Wall tool (**W**) and **drag** on the floor
   to draw a grid-snapped segment (auto axis-locked when near-straight, with a live length
   badge), or **type the warehouse dimensions** and hit “Build perimeter walls” to wrap the

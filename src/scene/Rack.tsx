@@ -5,7 +5,7 @@ import { animated, useSpring } from '@react-spring/three'
 import { Edges } from '@react-three/drei'
 import { useWarehouseStore } from '../store/useWarehouseStore'
 import { useEditorStore } from '../store/useEditorStore'
-import { getLocalSize, slotKey } from '../lib/rackGeometry'
+import { getLocalSize, levelAtHeight, slotKey } from '../lib/rackGeometry'
 import { gridToWorld } from '../lib/grid'
 import { computeGhost, finalizeDelete, requestDelete } from '../lib/editorActions'
 import { RackFrame } from './RackFrame'
@@ -118,10 +118,7 @@ export function Rack({ rackId }: { rackId: string }) {
         template.bays - 1,
         Math.max(0, Math.floor((tmpLocal.x + innerW / 2) / template.bayWidth)),
       )
-      const level = Math.min(
-        template.levels - 1,
-        Math.max(0, Math.floor(tmpLocal.y / template.levelHeight)),
-      )
+      const level = levelAtHeight(template, Math.max(0, tmpLocal.y))
       editor().selectSlot(slotKey(bay, level))
     } else {
       editor().selectRack(rackId)
