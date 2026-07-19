@@ -2,7 +2,7 @@ import { useLayoutEffect, useMemo, useRef } from 'react'
 import * as THREE from 'three'
 import { Edges } from '@react-three/drei'
 import type { RackInstance, RackTemplate } from '../types'
-import { allSlots, getSlotCell, parseSlotKey } from '../lib/rackGeometry'
+import { allSlots, effectiveVolume, getSlotCell, parseSlotKey } from '../lib/rackGeometry'
 import { slotColor } from '../lib/colorModes'
 import { useEditorStore } from '../store/useEditorStore'
 import { useRackStock } from '../store/useStockStore'
@@ -37,7 +37,9 @@ export function SlotCells({ rack, template }: { rack: RackInstance; template: Ra
         tmpScale.set(cell.scale[0], cell.scale[1], cell.scale[2]),
       )
       mesh.setMatrixAt(i, tmpMat4)
-      mesh.setColorAt(i, tmpColor.set(slotColor(slot, colorMode, stock?.[slot.key]?.length ?? 0)))
+      const stockItems = stock?.[slot.key]
+      const volUtil = effectiveVolume(slot, stockItems).util
+      mesh.setColorAt(i, tmpColor.set(slotColor(slot, colorMode, stockItems?.length ?? 0, volUtil)))
     }
     mesh.instanceMatrix.needsUpdate = true
     if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true

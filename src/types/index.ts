@@ -7,10 +7,12 @@ export type SlotStatus = 'empty' | 'ok' | 'warning' | 'overweight' | 'blocked'
 
 export type EditorMode = 'select' | 'place' | 'delete' | 'wall' | 'zone'
 
-export type ColorMode = 'status' | 'utilization' | 'stock' | 'none'
+export type ColorMode = 'status' | 'utilization' | 'stock' | 'volume' | 'none'
 
 export interface SlotDefaults {
   maxWeightKg: number
+  /** Volume capacity in m³. When omitted, computed from the slot's interior geometry. */
+  maxVolumeM3?: number
 }
 
 export interface RackTemplate {
@@ -43,6 +45,10 @@ export interface SlotOverride {
   label?: string
   maxWeightKg?: number
   currentWeightKg?: number
+  /** Per-slot override of the volume capacity (m³). */
+  maxVolumeM3?: number
+  /** Manually entered occupied volume (m³); overrides the stock-derived value. */
+  currentVolumeM3?: number
   statusOverride?: SlotStatus
 }
 
@@ -68,6 +74,12 @@ export interface ResolvedSlot {
   maxWeightKg: number
   currentWeightKg: number
   utilization: number
+  /** Volume capacity of the slot in m³ (override → template default → geometry). */
+  maxVolumeM3: number
+  /** Manually entered occupied volume in m³ (0 when not set; stock-derived value added at display time). */
+  currentVolumeM3: number
+  /** Manual-volume utilization (currentVolumeM3 / maxVolumeM3). */
+  volumeUtilization: number
   status: SlotStatus
   hasOverride: boolean
 }
@@ -209,6 +221,8 @@ export interface StockItem {
   /** Total stock quantity (not split when the item sits in several locations). */
   quantity: number
   unit?: string
+  /** Per-unit volume in m³, imported from the file (used for volume-fill of slots). */
+  unitVolumeM3?: number
   /** Raw location field as exported, e.g. "A05-01-01 PALETA65 D02-04-06". */
   locationRaw: string
   /** Every rack-code address found in the raw field. */

@@ -75,6 +75,9 @@ export function validateLayout(raw: unknown): WarehouseLayout {
     if (!t.defaultSlot || !isFiniteNumber(t.defaultSlot.maxWeightKg)) {
       throw new Error(`Template "${id}": invalid defaultSlot`)
     }
+    if (t.defaultSlot.maxVolumeM3 !== undefined && (!isFiniteNumber(t.defaultSlot.maxVolumeM3) || t.defaultSlot.maxVolumeM3 <= 0)) {
+      throw new Error(`Template "${id}": invalid defaultSlot.maxVolumeM3`)
+    }
     let levelHeights: number[] | undefined
     if (t.levelHeights !== undefined) {
       if (!Array.isArray(t.levelHeights) || t.levelHeights.length !== t.levels) {

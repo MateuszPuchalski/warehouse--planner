@@ -1,17 +1,28 @@
 import { useMemo } from 'react'
 import { useWarehouseStore } from '../store/useWarehouseStore'
 import { useEditorStore } from '../store/useEditorStore'
+import { useStockStore } from '../store/useStockStore'
 import { validateAisles } from '../lib/collision'
+import { countOverVolume } from '../lib/rackGeometry'
 import { useT, type TranslationKey } from '../lib/i18n'
 
 export function StatusBar() {
   const layout = useWarehouseStore((s) => s.layout)
+  const stockIndex = useStockStore((s) => s.index)
   const pointer = useEditorStore((s) => s.pointer)
   const mode = useEditorStore((s) => s.mode)
   const selectRack = useEditorStore((s) => s.selectRack)
   const t = useT()
 
   const violations = useMemo(() => validateAisles(layout), [layout])
+  const overVolume = useMemo(
+    () =>
+      Object.values(layout.racks).reduce((sum, r) => {
+        const tpl = layout.templates[r.templateId]
+        return sum + (tpl ? countOverVolume(tpl, r, r.code ? stockIndex[r.code] : undefined) : 0)
+      }, 0),
+    [layout, stockIndex],
+  )
   const rackCount = Object.keys(layout.racks).length
   const wallCount = Object.keys(layout.walls).length
   const slotCount = useMemo(
@@ -43,6 +54,7 @@ export function StatusBar() {
       ) : (
         <span className="text-ok">{t('sb.aislesOk')}</span>
       )}
+      {overVolume > 0 && <span className="font-medium text-danger">{t('sb.overVolume', { n: overVolume })}</span>}
       <span>
         {t('sb.mode')}: {t(`mode.${mode}` as TranslationKey)}
       </span>

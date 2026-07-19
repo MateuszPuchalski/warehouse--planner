@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import type { RackInstance, RackTemplate } from '../types'
-import { allSlots } from '../lib/rackGeometry'
+import { allSlots, effectiveVolume } from '../lib/rackGeometry'
 import { slotColor } from '../lib/colorModes'
 import { statusLabel, useT } from '../lib/i18n'
 import { useEditorStore } from '../store/useEditorStore'
@@ -38,17 +38,18 @@ export function SlotGrid({ rack, template }: { rack: RackInstance; template: Rac
             const stockTip = stockItems?.length
               ? ` · ${stockItems.map((i) => i.symbol).join(', ')}`
               : ''
+            const vol = effectiveVolume(slot, stockItems)
             const occupied = slot.status !== 'empty' || (stockItems?.length ?? 0) > 0
             return (
               <button
                 key={key}
                 onClick={() => selectSlot(selected ? null : key)}
-                title={`${slot.label} · ${statusLabel(t, slot.status)} · ${slot.currentWeightKg}/${slot.maxWeightKg} kg${stockTip}`}
+                title={`${slot.label} · ${statusLabel(t, slot.status)} · ${slot.currentWeightKg}/${slot.maxWeightKg} kg · ${vol.currentM3.toFixed(2)}/${slot.maxVolumeM3.toFixed(2)} m³${stockTip}`}
                 className={`h-6 cursor-pointer rounded-sm transition-transform hover:scale-105 ${
-                  selected ? 'ring-2 ring-white' : ''
+                  selected ? 'ring-2 ring-white' : vol.over ? 'ring-2 ring-red-500' : ''
                 }`}
                 style={{
-                  background: slotColor(slot, mode, stockItems?.length ?? 0),
+                  background: slotColor(slot, mode, stockItems?.length ?? 0, vol.util),
                   opacity: occupied ? 0.95 : 0.45,
                 }}
               />
