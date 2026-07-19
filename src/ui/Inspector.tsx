@@ -2,7 +2,7 @@ import { useMemo } from 'react'
 import type { SlotStatus, WallOpening, ZoneKind } from '../types'
 import { useWarehouseStore } from '../store/useWarehouseStore'
 import { useEditorStore } from '../store/useEditorStore'
-import { countOverVolume, effectiveVolume, parseSlotKey, rackStats, resolveSlot, slotVolumeM3 } from '../lib/rackGeometry'
+import { countOverVolume, effectiveVolume, parseSlotKey, rackStats, resolveSlot, slotVolumeM3, stockVolumeM3 } from '../lib/rackGeometry'
 import { rotateGhostOrSelection, requestDelete } from '../lib/editorActions'
 import { wallLengthM } from '../lib/walls'
 import { ZONE_KINDS, zoneColor, zoneRectM } from '../lib/zones'
@@ -10,6 +10,13 @@ import { normalizeUserRackCode } from '../lib/locationCode'
 import { useRackStock } from '../store/useStockStore'
 import { statusLabel, useT } from '../lib/i18n'
 import { SlotGrid } from './SlotGrid'
+
+/** Stable pastel tile color from a product symbol (placeholder thumbnail). */
+function symbolTint(symbol: string): string {
+  let h = 0
+  for (let i = 0; i < symbol.length; i++) h = (h * 31 + symbol.charCodeAt(i)) % 360
+  return `hsl(${h}, 45%, 45%)`
+}
 
 function NumField({
   label,
@@ -73,6 +80,14 @@ function FloorPanel() {
           type="checkbox"
           checked={floor.showAisleGuides}
           onChange={(e) => updateFloor({ showAisleGuides: e.target.checked })}
+        />
+      </label>
+      <label className="flex items-center justify-between text-xs">
+        <span className="text-muted">{t('floor.showLoad')}</span>
+        <input
+          type="checkbox"
+          checked={floor.showLoadProxies}
+          onChange={(e) => updateFloor({ showLoadProxies: e.target.checked })}
         />
       </label>
       <button className="btn btn-danger mt-2 justify-center" onClick={clearRacks} disabled={rackCount === 0}>
@@ -381,16 +396,33 @@ function SlotEditor({ rackId, slotKey }: { rackId: string; slotKey: string }) {
       {stock?.[slotKey] && stock[slotKey].length > 0 && (
         <div className="flex flex-col gap-1 rounded-md border border-accent/30 bg-bg p-2">
           <div className="panel-title">{t('slot.subiektTitle')}</div>
-          {stock[slotKey].map((item) => (
-            <div key={item.symbol} className="text-[11px]">
-              <span className="font-medium">{item.symbol}</span>
-              <span className="text-muted"> — {item.name}</span>
-              <div className="text-muted">
-                {item.quantity} {item.unit ?? ''}
-                {item.locations.length > 1 && <> · {t('slot.multiLocation', { n: item.locations.length })}</>}
+          {stock[slotKey].map((item) => {
+            const itemVol = stockVolumeM3([item])
+            const sharePct = slot.maxVolumeM3 > 0 ? Math.round((itemVol / slot.maxVolumeM3) * 100) : 0
+            return (
+              <div key={item.symbol} className="flex items-start gap-1.5 text-[11px]">
+                <span
+                  className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded text-[11px] font-bold text-white"
+                  style={{ background: symbolTint(item.symbol) }}
+                >
+                  {item.symbol.charAt(0).toUpperCase()}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <div>
+                    <span className="font-medium">{item.symbol}</span>
+                    <span className="text-muted"> — {item.name}</span>
+                  </div>
+                  <div className="text-muted">
+                    {item.quantity} {item.unit ?? ''}
+                    {item.unitVolumeM3
+                      ? ` · ${t('slot.volumeShare', { pct: sharePct })}`
+                      : ` · ${t('slot.noVolumeData')}`}
+                    {item.locations.length > 1 && <> · {t('slot.multiLocation', { n: item.locations.length })}</>}
+                  </div>
+                </div>
               </div>
-            </div>
-          ))}
+            )
+          })}
           {vol.over && stock[slotKey].some((i) => i.unitVolumeM3) && (
             <div className="text-[11px] font-semibold text-danger">{t('slot.doesntFit')}</div>
           )}

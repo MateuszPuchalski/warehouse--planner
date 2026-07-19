@@ -157,6 +157,18 @@ export function TemplateEditor() {
             <input type="number" className="field w-20 text-right" value={draft.defaultSlot.maxWeightKg} min={0} step={50}
               onChange={(e) => patch({ defaultSlot: { maxWeightKg: Math.max(0, Number(e.target.value) || 0) } })} />
           </Row>
+          <Row label={t('tpl.carrier')}>
+            <select
+              className="field w-28"
+              value={draft.carrier ?? 'auto'}
+              onChange={(e) => patch({ carrier: e.target.value === 'auto' ? undefined : (e.target.value as RackTemplate['carrier']) })}
+            >
+              <option value="auto">{t('tpl.carrier.auto')}</option>
+              <option value="pallet">{t('tpl.carrier.pallet')}</option>
+              <option value="carton">{t('tpl.carrier.carton')}</option>
+              <option value="bin">{t('tpl.carrier.bin')}</option>
+            </select>
+          </Row>
 
           <div className="text-[11px] text-muted">
             {t('tpl.slots', { n: draft.bays * effectiveLevels })} ·{' '}

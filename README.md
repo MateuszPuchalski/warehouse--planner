@@ -38,6 +38,12 @@ npm run dev     # http://localhost:5173
   slot editor, and per-rack / warehouse-wide counters — the "Volume" color mode shades every
   slot by its cube utilization. Product volume is imported via an optional column in the
   Subiekt export (m³ / dm³ / cm³ selectable), or typed in per slot.
+- **Load proxies (goods in 3D)** — occupied slots render a solid load shaped by the rack's
+  carrier type (pallet with a base slab / carton / bin), rising to the volume actually stored
+  there (from Subiekt stock) and colored green→red by fill. Shown in the Stock/Volume color
+  modes and toggled by "Show goods" in the Floor panel; carrier type is a template field
+  (auto-inferred from rack depth otherwise). The slot inspector lists each product with a
+  placeholder tile, quantity, and its share of the slot volume.
 - **Aisle validation** — facing racks closer than the minimum aisle width get a red
   zone + distance badge; live distance guides while placing. Gaps ≤ 0.5 m count as
   intentional back-to-back (flue) placement, and a gap that contains another rack
