@@ -17,14 +17,23 @@ import { makePerimeterWalls } from './walls'
  *   along the north/west walls and a central back-to-back block.
  */
 
-const PALLET = { bays: 3, bayWidth: 0.9, depth: 1.1, uprightSize: 0.09, beamHeight: 0.12 }
-const SHELF = { depth: 0.6, uprightSize: 0.05, beamHeight: 0.04 }
-const BIN = { uprightSize: 0.04, beamHeight: 0.025 }
+const PALLET = { bays: 3, bayWidth: 0.9, depth: 1.1, uprightSize: 0.09, beamHeight: 0.12, carrier: 'pallet' as const }
+const SHELF = { depth: 0.6, uprightSize: 0.05, beamHeight: 0.04, carrier: 'carton' as const }
+const BIN = { uprightSize: 0.04, beamHeight: 0.025, carrier: 'bin' as const }
+
+type TplBase = {
+  bays: number
+  bayWidth: number
+  depth: number
+  uprightSize: number
+  beamHeight: number
+  carrier: RackTemplate['carrier']
+}
 
 function tpl(
   id: string,
   name: string,
-  base: { bays: number; bayWidth: number; depth: number; uprightSize: number; beamHeight: number },
+  base: TplBase,
   levelHeights: number[],
   maxWeightKg: number,
 ): RackTemplate {
@@ -43,7 +52,7 @@ function tpl(
 function uniformTpl(
   id: string,
   name: string,
-  base: { bays: number; bayWidth: number; depth: number; uprightSize: number; beamHeight: number },
+  base: TplBase,
   levels: number,
   levelHeight: number,
   maxWeightKg: number,
@@ -176,6 +185,7 @@ export function buildSampleWarehouse(): WarehouseLayout {
     cellSize: 0.5,
     minAisleWidthM: 2.5,
     showAisleGuides: true,
+    showLoadProxies: true,
     wallHeightM: 5.8,
     wallThicknessM: 0.25,
   }

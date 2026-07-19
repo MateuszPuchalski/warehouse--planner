@@ -53,6 +53,21 @@ export const wallMat = new THREE.MeshStandardMaterial({
   metalness: 0.02,
 })
 
+// Load proxy — a solid box for the goods stored in a slot. White base so the
+// per-instance color set via setColorAt multiplies correctly.
+export const loadMat = new THREE.MeshStandardMaterial({
+  color: '#ffffff',
+  roughness: 0.7,
+  metalness: 0,
+})
+
+// Pallet base slab under a pallet load (fixed wood tone, no per-instance tint).
+export const palletBaseMat = new THREE.MeshStandardMaterial({
+  color: '#9c7248',
+  roughness: 0.85,
+  metalness: 0,
+})
+
 export const wallGhostValidMat = new THREE.MeshStandardMaterial({
   color: '#4c9aff',
   transparent: true,

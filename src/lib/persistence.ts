@@ -49,6 +49,7 @@ const FLOOR_DEFAULTS: FloorConfig = {
   cellSize: 0.5,
   minAisleWidthM: 3,
   showAisleGuides: true,
+  showLoadProxies: true,
   wallHeightM: 3,
   wallThicknessM: 0.2,
 }
@@ -88,11 +89,13 @@ export function validateLayout(raw: unknown): WarehouseLayout {
       }
       levelHeights = [...t.levelHeights]
     }
+    const carrier = t.carrier && ['pallet', 'carton', 'bin'].includes(t.carrier) ? t.carrier : undefined
     templates[id] = {
       ...t,
       id,
       name: typeof t.name === 'string' ? t.name : id,
       ...(levelHeights ? { levelHeights } : { levelHeights: undefined }),
+      ...(carrier ? { carrier } : { carrier: undefined }),
     }
   }
 

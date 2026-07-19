@@ -15,6 +15,9 @@ export interface SlotDefaults {
   maxVolumeM3?: number
 }
 
+/** Physical carrier a rack stores its goods on — drives the 3D load-proxy shape. */
+export type CarrierKind = 'pallet' | 'carton' | 'bin'
+
 export interface RackTemplate {
   id: string
   name: string
@@ -37,6 +40,8 @@ export interface RackTemplate {
   uprightSize: number
   /** Visual height of horizontal beams in meters. */
   beamHeight: number
+  /** Carrier stored in each slot (for the 3D load proxy). Omitted = inferred from depth. */
+  carrier?: CarrierKind
   defaultSlot: SlotDefaults
 }
 
@@ -91,6 +96,8 @@ export interface FloorConfig {
   cellSize: number
   minAisleWidthM: number
   showAisleGuides: boolean
+  /** Show 3D load proxies (goods sitting in occupied slots) in stock/volume color modes. */
+  showLoadProxies: boolean
   /** Default height of newly drawn / perimeter walls in meters. */
   wallHeightM: number
   /** Default thickness of newly drawn / perimeter walls in meters. */
