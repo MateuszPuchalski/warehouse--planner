@@ -28,7 +28,16 @@ npm run dev     # http://localhost:5173
   lines (A–F) with validated ≥3 m aisles (`src/lib/sampleWarehouse.ts`).
 - **Slot configuration** — click a selected rack (3D) or the inspector grid (2D) to
   edit any slot: label, max weight, current weight, status override. Color modes:
-  status (empty/ok/near-capacity/overweight/blocked) or continuous utilization.
+  status (empty/ok/near-capacity/overweight/blocked), continuous weight utilization,
+  or **volume**.
+- **Volume / cube overload** — a second capacity axis alongside weight. Each slot has a
+  volume capacity in m³ (defaulted from the shelf's interior geometry, overridable per
+  slot), and an occupied volume that is either entered manually or derived from imported
+  stock (`quantity × per-unit volume`, quantity split across a product's locations).
+  Slots over their volume capacity are flagged with a red ring in the grid, a badge in the
+  slot editor, and per-rack / warehouse-wide counters — the "Volume" color mode shades every
+  slot by its cube utilization. Product volume is imported via an optional column in the
+  Subiekt export (m³ / dm³ / cm³ selectable), or typed in per slot.
 - **Aisle validation** — facing racks closer than the minimum aisle width get a red
   zone + distance badge; live distance guides while placing. Gaps ≤ 0.5 m count as
   intentional back-to-back (flue) placement, and a gap that contains another rack

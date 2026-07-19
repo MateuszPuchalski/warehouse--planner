@@ -2,7 +2,7 @@ import { useMemo } from 'react'
 import type { SlotStatus, WallOpening, ZoneKind } from '../types'
 import { useWarehouseStore } from '../store/useWarehouseStore'
 import { useEditorStore } from '../store/useEditorStore'
-import { parseSlotKey, rackStats, resolveSlot } from '../lib/rackGeometry'
+import { countOverVolume, effectiveVolume, parseSlotKey, rackStats, resolveSlot, slotVolumeM3 } from '../lib/rackGeometry'
 import { rotateGhostOrSelection, requestDelete } from '../lib/editorActions'
 import { wallLengthM } from '../lib/walls'
 import { ZONE_KINDS, zoneColor, zoneRectM } from '../lib/zones'
@@ -258,6 +258,7 @@ function SlotEditor({ rackId, slotKey }: { rackId: string; slotKey: string }) {
   if (!rack || !template || bay >= template.bays || level >= template.levels) return null
   const slot = resolveSlot(template, rack, bay, level)
   const override = rack.slotOverrides[slotKey] ?? {}
+  const vol = effectiveVolume(slot, stock?.[slotKey])
 
   const STATUSES: SlotStatus[] = ['blocked', 'empty', 'ok', 'warning', 'overweight']
 
@@ -340,6 +341,43 @@ function SlotEditor({ rackId, slotKey }: { rackId: string; slotKey: string }) {
         </button>
       </div>
 
+      <div className="mt-1 h-px bg-border" />
+
+      <NumField
+        label={t('slot.maxVolume')}
+        value={Number(slot.maxVolumeM3.toFixed(3))}
+        min={0}
+        step={0.05}
+        suffix="m³"
+        onChange={(v) =>
+          updateSlot(rackId, slotKey, {
+            maxVolumeM3: v <= 0 || Math.abs(v - slotVolumeM3(template, level)) < 1e-4 ? undefined : v,
+          })
+        }
+      />
+      <NumField
+        label={t('slot.currentVolume')}
+        value={Number((override.currentVolumeM3 ?? 0).toFixed(3))}
+        min={0}
+        step={0.05}
+        suffix="m³"
+        onChange={(v) => updateSlot(rackId, slotKey, { currentVolumeM3: v > 0 ? v : undefined })}
+      />
+
+      <div className="h-1.5 overflow-hidden rounded bg-bg">
+        <div
+          className="h-full transition-all"
+          style={{
+            width: `${Math.min(100, vol.util * 100)}%`,
+            background: vol.util > 1 ? '#ff5c5c' : vol.util > 0.8 ? '#ffb020' : '#38bdf8',
+          }}
+        />
+      </div>
+      <div className="flex items-center justify-between text-[11px] text-muted">
+        <span>{t('slot.volumeUtilized', { pct: Math.round(vol.util * 100) })}</span>
+        {vol.over && <span className="font-semibold text-danger">{t('slot.overVolume')}</span>}
+      </div>
+
       {stock?.[slotKey] && stock[slotKey].length > 0 && (
         <div className="flex flex-col gap-1 rounded-md border border-accent/30 bg-bg p-2">
           <div className="panel-title">{t('slot.subiektTitle')}</div>
@@ -353,6 +391,9 @@ function SlotEditor({ rackId, slotKey }: { rackId: string; slotKey: string }) {
               </div>
             </div>
           ))}
+          {vol.over && stock[slotKey].some((i) => i.unitVolumeM3) && (
+            <div className="text-[11px] font-semibold text-danger">{t('slot.doesntFit')}</div>
+          )}
           <div className="text-[10px] text-muted">{t('slot.subiektHint')}</div>
         </div>
       )}
@@ -377,6 +418,10 @@ function RackPanel({ rackId }: { rackId: string }) {
   const stockCount = useMemo(
     () => (stock ? new Set(Object.values(stock).flat().map((i) => i.symbol)).size : 0),
     [stock],
+  )
+  const overVolume = useMemo(
+    () => (rack && template ? countOverVolume(template, rack, stock) : 0),
+    [rack, template, stock],
   )
 
   if (!rack || !template || !stats) return null
@@ -437,6 +482,11 @@ function RackPanel({ rackId }: { rackId: string }) {
         <span className={stats.overweight > 0 ? 'font-semibold text-danger' : ''}>
           {t('rack.overweight', { n: stats.overweight })}
         </span>
+        {overVolume > 0 && (
+          <span className="col-span-2 font-semibold text-danger">
+            {t('rack.overVolume', { n: overVolume })}
+          </span>
+        )}
       </div>
 
       <div className="flex gap-1">

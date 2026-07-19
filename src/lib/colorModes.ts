@@ -18,11 +18,22 @@ export function utilizationColor(utilization: number): string {
 /** Slot fill by Subiekt stock: occupied blue, deeper when several SKUs share it. */
 export const STOCK_COLORS = { one: '#38bdf8', multi: '#0369a1' }
 
-export function slotColor(slot: ResolvedSlot, mode: ColorMode, stockCount = 0): string {
+export function slotColor(
+  slot: ResolvedSlot,
+  mode: ColorMode,
+  stockCount = 0,
+  volumeUtil?: number,
+): string {
   if (mode === 'utilization') {
     if (slot.status === 'blocked') return STATUS_COLORS.blocked
     if (slot.currentWeightKg <= 0) return STATUS_COLORS.empty
     return utilizationColor(slot.utilization)
+  }
+  if (mode === 'volume') {
+    if (slot.status === 'blocked') return STATUS_COLORS.blocked
+    const u = volumeUtil ?? slot.volumeUtilization
+    if (u <= 0) return STATUS_COLORS.empty
+    return utilizationColor(u)
   }
   if (mode === 'stock') {
     if (slot.status === 'blocked') return STATUS_COLORS.blocked

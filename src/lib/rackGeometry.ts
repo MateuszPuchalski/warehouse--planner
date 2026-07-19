@@ -6,6 +6,7 @@ import type {
   ResolvedSlot,
   SlotKey,
   SlotStatus,
+  StockItem,
 } from '../types'
 
 export function slotKey(bay: number, level: number): SlotKey {
@@ -129,6 +130,12 @@ export function getSlotCell(t: RackTemplate, bay: number, level: number): Member
   }
 }
 
+/** Usable interior volume of a slot in m³, from the slot cell's geometry. */
+export function slotVolumeM3(t: RackTemplate, level: number): number {
+  const [w, h, d] = getSlotCell(t, 0, level).scale
+  return w * h * d
+}
+
 export function resolveSlot(
   t: RackTemplate,
   rack: RackInstance,
@@ -140,6 +147,9 @@ export function resolveSlot(
   const maxWeightKg = o?.maxWeightKg ?? t.defaultSlot.maxWeightKg
   const currentWeightKg = o?.currentWeightKg ?? 0
   const utilization = maxWeightKg > 0 ? currentWeightKg / maxWeightKg : 0
+  const maxVolumeM3 = o?.maxVolumeM3 ?? t.defaultSlot.maxVolumeM3 ?? slotVolumeM3(t, level)
+  const currentVolumeM3 = o?.currentVolumeM3 ?? 0
+  const volumeUtilization = maxVolumeM3 > 0 ? currentVolumeM3 / maxVolumeM3 : 0
   let status: SlotStatus
   if (o?.statusOverride) status = o.statusOverride
   else if (currentWeightKg <= 0) status = 'empty'
@@ -154,9 +164,40 @@ export function resolveSlot(
     maxWeightKg,
     currentWeightKg,
     utilization,
+    maxVolumeM3,
+    currentVolumeM3,
+    volumeUtilization,
     status,
     hasOverride: o !== undefined,
   }
+}
+
+/**
+ * Occupied volume (m³) implied by stock at one slot: each item's total quantity
+ * is split evenly across its locations (quantity is not per-location), times its
+ * per-unit volume. Items without a unit volume contribute nothing.
+ */
+export function stockVolumeM3(items: StockItem[]): number {
+  let total = 0
+  for (const item of items) {
+    if (!item.unitVolumeM3) continue
+    const perLocation = item.quantity / Math.max(1, item.locations.length)
+    total += perLocation * item.unitVolumeM3
+  }
+  return total
+}
+
+/**
+ * Effective volume fill of a slot: a manual override wins, otherwise it is
+ * derived from the stock parked at that slot.
+ */
+export function effectiveVolume(
+  slot: ResolvedSlot,
+  stockItems: StockItem[] | undefined,
+): { currentM3: number; util: number; over: boolean } {
+  const currentM3 = slot.currentVolumeM3 > 0 ? slot.currentVolumeM3 : stockVolumeM3(stockItems ?? [])
+  const util = slot.maxVolumeM3 > 0 ? currentM3 / slot.maxVolumeM3 : 0
+  return { currentM3, util, over: util > 1 }
 }
 
 export function allSlots(t: RackTemplate, rack: RackInstance): ResolvedSlot[] {
@@ -180,4 +221,17 @@ export function rackStats(
     if (s.status === 'overweight') overweight++
   }
   return { total: t.bays * t.levels, occupied, warnings, overweight }
+}
+
+/** Count slots whose effective volume (manual or stock-derived) exceeds capacity. */
+export function countOverVolume(
+  t: RackTemplate,
+  rack: RackInstance,
+  stock: Record<SlotKey, StockItem[]> | null | undefined,
+): number {
+  let over = 0
+  for (const s of allSlots(t, rack)) {
+    if (effectiveVolume(s, stock?.[s.key]).over) over++
+  }
+  return over
 }

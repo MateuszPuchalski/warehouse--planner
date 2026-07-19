@@ -12,7 +12,13 @@ export interface ColumnMapping {
   quantity: number
   location: number
   unit: number | null
+  /** Optional per-unit volume column; null when absent. */
+  volume: number | null
 }
+
+/** Volume column unit → factor converting a cell value to m³. */
+export type VolumeUnit = 'm3' | 'dm3' | 'cm3'
+export const VOLUME_UNIT_FACTORS: Record<VolumeUnit, number> = { m3: 1, dm3: 1e-3, cm3: 1e-6 }
 
 export interface ParsedFile {
   rows: Grid
@@ -87,12 +93,13 @@ function normalizeHeader(h: Cell): string {
     .replace(/[^a-z0-9]/g, '')
 }
 
-const HEADER_KEYWORDS: Record<keyof Omit<ColumnMapping, 'unit'> | 'unit', string[]> = {
+const HEADER_KEYWORDS: Record<keyof ColumnMapping, string[]> = {
   symbol: ['symbol', 'indeks', 'kod'],
   name: ['nazwa', 'towar', 'name'],
   quantity: ['stan', 'ilosc', 'quantity', 'qty'],
   location: ['lokalizacja', 'lokacja', 'adres', 'location', 'pole'],
   unit: ['jm', 'jedn', 'unit'],
+  volume: ['objetosc', 'kubatura', 'volume', 'cbm', 'm3'],
 }
 
 export function guessMapping(headerRow: Cell[]): ColumnMapping | null {
@@ -114,8 +121,16 @@ export function guessMapping(headerRow: Cell[]): ColumnMapping | null {
   const quantity = find(HEADER_KEYWORDS.quantity)
   const location = find(HEADER_KEYWORDS.location)
   const unit = find(HEADER_KEYWORDS.unit)
+  const volume = find(HEADER_KEYWORDS.volume)
   if (symbol === -1 || quantity === -1 || location === -1) return null
-  return { symbol, name: name === -1 ? symbol : name, quantity, location, unit: unit === -1 ? null : unit }
+  return {
+    symbol,
+    name: name === -1 ? symbol : name,
+    quantity,
+    location,
+    unit: unit === -1 ? null : unit,
+    volume: volume === -1 ? null : volume,
+  }
 }
 
 // ---------- File entry point ----------
@@ -155,9 +170,15 @@ export interface StockConversion {
   noLocation: number
 }
 
-export function rowsToStockItems(rows: Grid, mapping: ColumnMapping, skipHeader: boolean): StockConversion {
+export function rowsToStockItems(
+  rows: Grid,
+  mapping: ColumnMapping,
+  skipHeader: boolean,
+  volumeUnit: VolumeUnit = 'm3',
+): StockConversion {
   const items: StockItem[] = []
   let noLocation = 0
+  const volumeFactor = VOLUME_UNIT_FACTORS[volumeUnit]
   for (const row of skipHeader ? rows.slice(1) : rows) {
     const symbol = String(row[mapping.symbol] ?? '').trim()
     if (!symbol) continue
@@ -166,11 +187,17 @@ export function rowsToStockItems(rows: Grid, mapping: ColumnMapping, skipHeader:
       ? parseLocationField(locationRaw)
       : { locations: [], other: [] }
     if (!locationRaw) noLocation++
+    let unitVolumeM3: number | undefined
+    if (mapping.volume !== null) {
+      const v = toQuantity(row[mapping.volume] ?? 0) * volumeFactor
+      if (v > 0) unitVolumeM3 = v
+    }
     items.push({
       symbol,
       name: String(row[mapping.name] ?? '').trim(),
       quantity: toQuantity(row[mapping.quantity] ?? 0),
       unit: mapping.unit !== null ? String(row[mapping.unit] ?? '').trim() || undefined : undefined,
+      unitVolumeM3,
       locationRaw,
       locations,
       otherLocations: other,

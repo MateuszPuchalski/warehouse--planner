@@ -9,11 +9,13 @@ import {
   rowsToStockItems,
   type ColumnMapping,
   type ParsedFile,
+  type VolumeUnit,
 } from '../lib/stockFile'
 import { buildPlan } from '../lib/autoBuild'
 import { useT, type TranslationKey } from '../lib/i18n'
 
-const MAPPING_FIELDS = ['symbol', 'name', 'quantity', 'location', 'unit'] as const
+const MAPPING_FIELDS = ['symbol', 'name', 'quantity', 'location', 'unit', 'volume'] as const
+const VOLUME_UNITS: VolumeUnit[] = ['m3', 'dm3', 'cm3']
 
 const PREVIEW_ROWS = 12
 
@@ -33,6 +35,7 @@ export function SubiektImport() {
   const [fileName, setFileName] = useState('')
   const [mapping, setMapping] = useState<ColumnMapping | null>(null)
   const [firstRowIsData, setFirstRowIsData] = useState(false)
+  const [volumeUnit, setVolumeUnit] = useState<VolumeUnit>('m3')
   // Opt-in: by default the import only fills existing racks and never mutates the layout.
   const [createMissing, setCreateMissing] = useState(false)
 
@@ -46,7 +49,9 @@ export function SubiektImport() {
       const result = await parseStockFile(file)
       setParsed(result)
       setFileName(file.name)
-      setMapping(result.headerGuess ?? { symbol: 0, name: 1, quantity: 2, location: 3, unit: null })
+      setMapping(
+        result.headerGuess ?? { symbol: 0, name: 1, quantity: 2, location: 3, unit: null, volume: null },
+      )
       setFirstRowIsData(result.headerGuess === null && guessMapping(result.rows[0]) === null)
     } catch (err) {
       showToast(
@@ -58,8 +63,8 @@ export function SubiektImport() {
 
   const conversion = useMemo(() => {
     if (!parsed || !mapping) return null
-    return rowsToStockItems(parsed.rows, mapping, !firstRowIsData)
-  }, [parsed, mapping, firstRowIsData])
+    return rowsToStockItems(parsed.rows, mapping, !firstRowIsData, volumeUnit)
+  }, [parsed, mapping, firstRowIsData, volumeUnit])
 
   const plan = useMemo(() => {
     if (!conversion) return null
@@ -155,7 +160,7 @@ export function SubiektImport() {
 
         {parsed && mapping && conversion && plan && (
           <>
-            <div className="mt-3 grid grid-cols-5 gap-1.5">
+            <div className="mt-3 grid grid-cols-6 gap-1.5">
               {MAPPING_FIELDS.map((field) => (
                 <label key={field} className="flex flex-col gap-0.5 text-[10px] text-muted">
                   {t(`subiekt.col.${field}` as TranslationKey)}
@@ -164,10 +169,13 @@ export function SubiektImport() {
                     value={mapping[field] ?? -1}
                     onChange={(e) => {
                       const v = Number(e.target.value)
-                      setMapping({ ...mapping, [field]: field === 'unit' && v === -1 ? null : v })
+                      const nullable = field === 'unit' || field === 'volume'
+                      setMapping({ ...mapping, [field]: nullable && v === -1 ? null : v })
                     }}
                   >
-                    {field === 'unit' && <option value={-1}>{t('subiekt.colIgnore')}</option>}
+                    {(field === 'unit' || field === 'volume') && (
+                      <option value={-1}>{t('subiekt.colIgnore')}</option>
+                    )}
                     {Array.from({ length: colCount }, (_, i) => (
                       <option key={i} value={i}>
                         {firstRowIsData ? `#${i + 1}` : String(parsed.rows[0][i] ?? `#${i + 1}`)}
@@ -177,6 +185,23 @@ export function SubiektImport() {
                 </label>
               ))}
             </div>
+
+            {mapping.volume !== null && (
+              <label className="mt-1.5 flex items-center gap-1.5 text-[11px] text-muted">
+                {t('subiekt.volumeUnit')}
+                <select
+                  className="field w-24"
+                  value={volumeUnit}
+                  onChange={(e) => setVolumeUnit(e.target.value as VolumeUnit)}
+                >
+                  {VOLUME_UNITS.map((u) => (
+                    <option key={u} value={u}>
+                      {t(`subiekt.volumeUnit.${u}` as TranslationKey)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
 
             <label className="mt-1.5 flex items-center gap-1.5 text-[11px] text-muted">
               <input
