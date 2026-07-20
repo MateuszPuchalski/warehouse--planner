@@ -20,6 +20,7 @@ export interface EditorState {
   showPresetManager: boolean
   showSubiektImport: boolean
   showSuggest: boolean
+  showDashboard: boolean
   /** Slots highlighted as put-away suggestions, keyed `${rackId}:${bay}:${level}`. */
   suggestedSlots: Set<string>
   /** Slots highlighted by the SKU search, keyed `${rackId}:${bay}:${level}`. */
@@ -47,6 +48,7 @@ export interface EditorState {
   setShowPresetManager: (open: boolean) => void
   setShowSubiektImport: (open: boolean) => void
   setShowSuggest: (open: boolean) => void
+  setShowDashboard: (open: boolean) => void
   setSuggestedSlots: (slots: Set<string>) => void
   setFoundSlots: (slots: Set<string>) => void
   openTemplateEditor: (id: string | null) => void
@@ -74,6 +76,7 @@ export const useEditorStore = create<EditorState>()((set, get) => ({
   showPresetManager: false,
   showSubiektImport: false,
   showSuggest: false,
+  showDashboard: false,
   suggestedSlots: new Set<string>(),
   foundSlots: new Set<string>(),
   editingTemplateId: null,
@@ -169,6 +172,7 @@ export const useEditorStore = create<EditorState>()((set, get) => ({
   setShowPresetManager: (showPresetManager) => set({ showPresetManager }),
   setShowSubiektImport: (showSubiektImport) => set({ showSubiektImport }),
   setShowSuggest: (showSuggest) => set({ showSuggest }),
+  setShowDashboard: (showDashboard) => set({ showDashboard }),
   setSuggestedSlots: (suggestedSlots) => set({ suggestedSlots }),
   setFoundSlots: (foundSlots) => set({ foundSlots }),
   openTemplateEditor: (editingTemplateId) => set({ editingTemplateId }),

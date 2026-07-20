@@ -20,6 +20,7 @@ import { TemplateEditor } from './ui/TemplateEditor'
 import { PresetManager } from './ui/PresetManager'
 import { SubiektImport } from './ui/SubiektImport'
 import { SuggestPanel } from './ui/SuggestPanel'
+import { Dashboard } from './ui/Dashboard'
 
 function Toast() {
   const toast = useEditorStore((s) => s.toast)
@@ -52,6 +53,7 @@ export default function App() {
   const showPresetManager = useEditorStore((s) => s.showPresetManager)
   const showSubiektImport = useEditorStore((s) => s.showSubiektImport)
   const showSuggest = useEditorStore((s) => s.showSuggest)
+  const showDashboard = useEditorStore((s) => s.showDashboard)
   const lang = useI18nStore((s) => s.lang)
 
   // Keep the document language and title in sync with the UI language.
@@ -137,6 +139,7 @@ export default function App() {
       {showPresetManager && <PresetManager />}
       {showSubiektImport && <SubiektImport />}
       {showSuggest && <SuggestPanel />}
+      {showDashboard && <Dashboard />}
       <Toast />
     </div>
   )

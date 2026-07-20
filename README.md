@@ -54,6 +54,11 @@ npm run dev     # http://localhost:5173
   symbol, name, or EAN; every matching slot is highlighted amber in 3D and listed in a dropdown
   (rack code · slot · quantity), and clicking a result selects that rack + slot. EAN is an optional
   import column. Matching lives in `src/lib/findStock.ts` (`matchStock` + `locateHits`).
+- **KPI dashboard** — the "KPI" button opens a read-only panel summarizing the warehouse:
+  fill %, free slots, volume utilization, overweight / over-volume slot counts and aisle
+  warnings (stat tiles + meters), free slots broken down by carrier (pallet / carton / bin),
+  and a stock summary (SKUs, total quantity, located / pallet-only / unlocated). Metrics are
+  aggregated in `src/lib/kpi.ts` (`computeKpis`) reusing the existing slot/volume/aisle helpers.
 - **Aisle validation** — facing racks closer than the minimum aisle width get a red
   zone + distance badge; live distance guides while placing. Gaps ≤ 0.5 m count as
   intentional back-to-back (flue) placement, and a gap that contains another rack
