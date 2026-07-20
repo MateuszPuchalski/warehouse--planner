@@ -5,6 +5,7 @@ import { useWarehouseStore } from '../store/useWarehouseStore'
 import { useEditorStore } from '../store/useEditorStore'
 import { useStockStore } from '../store/useStockStore'
 import { undo, redo } from '../lib/editorActions'
+import { StockSearch } from './StockSearch'
 import { exportLayoutFile, importLayoutFile } from '../lib/persistence'
 import { useI18nStore, useT, type Lang } from '../lib/i18n'
 
@@ -65,6 +66,8 @@ export function TopBar() {
         </button>
 
         <span className="mx-1 h-5 w-px bg-border" />
+
+        <StockSearch />
 
         <label className="flex items-center gap-1 text-xs text-muted">
           {t('top.color')}

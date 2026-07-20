@@ -50,6 +50,10 @@ npm run dev     # http://localhost:5173
   tightest volume fit (least wasted space). Clicking a result selects the rack + slot; all matches
   are highlighted green in 3D. The scorer (`src/lib/suggest.ts`) is structured to grow later
   factors (SKU consolidation, dock proximity, lower levels).
+- **Find a product** — a search box in the top bar (shown once stock is imported) matches by
+  symbol, name, or EAN; every matching slot is highlighted amber in 3D and listed in a dropdown
+  (rack code · slot · quantity), and clicking a result selects that rack + slot. EAN is an optional
+  import column. Matching lives in `src/lib/findStock.ts` (`matchStock` + `locateHits`).
 - **Aisle validation** — facing racks closer than the minimum aisle width get a red
   zone + distance badge; live distance guides while placing. Gaps ≤ 0.5 m count as
   intentional back-to-back (flue) placement, and a gap that contains another rack

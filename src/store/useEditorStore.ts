@@ -22,6 +22,8 @@ export interface EditorState {
   showSuggest: boolean
   /** Slots highlighted as put-away suggestions, keyed `${rackId}:${bay}:${level}`. */
   suggestedSlots: Set<string>
+  /** Slots highlighted by the SKU search, keyed `${rackId}:${bay}:${level}`. */
+  foundSlots: Set<string>
   editingTemplateId: string | null
   toast: { msg: string; kind: 'info' | 'error' } | null
 
@@ -46,6 +48,7 @@ export interface EditorState {
   setShowSubiektImport: (open: boolean) => void
   setShowSuggest: (open: boolean) => void
   setSuggestedSlots: (slots: Set<string>) => void
+  setFoundSlots: (slots: Set<string>) => void
   openTemplateEditor: (id: string | null) => void
   showToast: (msg: string, kind?: 'info' | 'error') => void
 }
@@ -72,6 +75,7 @@ export const useEditorStore = create<EditorState>()((set, get) => ({
   showSubiektImport: false,
   showSuggest: false,
   suggestedSlots: new Set<string>(),
+  foundSlots: new Set<string>(),
   editingTemplateId: null,
   toast: null,
 
@@ -83,6 +87,7 @@ export const useEditorStore = create<EditorState>()((set, get) => ({
       wallDraft: null,
       zoneDraft: null,
       suggestedSlots: s.suggestedSlots.size ? new Set<string>() : s.suggestedSlots,
+      foundSlots: s.foundSlots.size ? new Set<string>() : s.foundSlots,
       ...(mode !== 'place' ? { placingTemplateId: null } : {}),
     })),
 
@@ -165,6 +170,7 @@ export const useEditorStore = create<EditorState>()((set, get) => ({
   setShowSubiektImport: (showSubiektImport) => set({ showSubiektImport }),
   setShowSuggest: (showSuggest) => set({ showSuggest }),
   setSuggestedSlots: (suggestedSlots) => set({ suggestedSlots }),
+  setFoundSlots: (foundSlots) => set({ foundSlots }),
   openTemplateEditor: (editingTemplateId) => set({ editingTemplateId }),
 
   showToast: (msg, kind = 'info') => {

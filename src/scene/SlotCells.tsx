@@ -26,6 +26,7 @@ export function SlotCells({ rack, template }: { rack: RackInstance; template: Ra
     s.selectedRackId === rack.id ? s.selectedSlotKey : null,
   )
   const suggestedSlots = useEditorStore((s) => s.suggestedSlots)
+  const foundSlots = useEditorStore((s) => s.foundSlots)
   const ref = useRef<THREE.InstancedMesh>(null)
   const loadRef = useRef<THREE.InstancedMesh>(null)
   const baseRef = useRef<THREE.InstancedMesh>(null)
@@ -110,6 +111,13 @@ export function SlotCells({ rack, template }: { rack: RackInstance; template: Ra
       .map((s) => getSlotCell(template, s.bay, s.level))
   }, [suggestedSlots, slots, rack.id, template])
 
+  const foundCells = useMemo(() => {
+    if (foundSlots.size === 0) return []
+    return slots
+      .filter((s) => foundSlots.has(`${rack.id}:${s.key}`))
+      .map((s) => getSlotCell(template, s.bay, s.level))
+  }, [foundSlots, slots, rack.id, template])
+
   return (
     <group>
       <instancedMesh
@@ -140,6 +148,13 @@ export function SlotCells({ rack, template }: { rack: RackInstance; template: Ra
           <boxGeometry args={cell.scale} />
           <meshBasicMaterial color="#3ddc84" transparent opacity={0.28} depthWrite={false} />
           <Edges color="#3ddc84" />
+        </mesh>
+      ))}
+      {foundCells.map((cell, i) => (
+        <mesh key={`found${i}`} position={cell.pos} raycast={() => null}>
+          <boxGeometry args={cell.scale} />
+          <meshBasicMaterial color="#f5a623" transparent opacity={0.32} depthWrite={false} />
+          <Edges color="#f5a623" />
         </mesh>
       ))}
       {selectedCell && (

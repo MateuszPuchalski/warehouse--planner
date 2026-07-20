@@ -15,7 +15,7 @@ import {
 import { buildPlan } from '../lib/autoBuild'
 import { useT, type TranslationKey } from '../lib/i18n'
 
-const MAPPING_FIELDS = ['symbol', 'name', 'quantity', 'location', 'unit', 'volume', 'weight'] as const
+const MAPPING_FIELDS = ['symbol', 'name', 'quantity', 'location', 'unit', 'volume', 'weight', 'ean'] as const
 const VOLUME_UNITS: VolumeUnit[] = ['m3', 'dm3', 'cm3']
 const WEIGHT_UNITS: WeightUnit[] = ['kg', 'g']
 
@@ -54,7 +54,7 @@ export function SubiektImport() {
       setFileName(file.name)
       setMapping(
         result.headerGuess ?? {
-          symbol: 0, name: 1, quantity: 2, location: 3, unit: null, volume: null, weight: null,
+          symbol: 0, name: 1, quantity: 2, location: 3, unit: null, volume: null, weight: null, ean: null,
         },
       )
       setFirstRowIsData(result.headerGuess === null && guessMapping(result.rows[0]) === null)
@@ -165,7 +165,7 @@ export function SubiektImport() {
 
         {parsed && mapping && conversion && plan && (
           <>
-            <div className="mt-3 grid grid-cols-7 gap-1.5">
+            <div className="mt-3 grid grid-cols-8 gap-1.5">
               {MAPPING_FIELDS.map((field) => (
                 <label key={field} className="flex flex-col gap-0.5 text-[10px] text-muted">
                   {t(`subiekt.col.${field}` as TranslationKey)}
@@ -174,11 +174,12 @@ export function SubiektImport() {
                     value={mapping[field] ?? -1}
                     onChange={(e) => {
                       const v = Number(e.target.value)
-                      const nullable = field === 'unit' || field === 'volume' || field === 'weight'
+                      const nullable =
+                        field === 'unit' || field === 'volume' || field === 'weight' || field === 'ean'
                       setMapping({ ...mapping, [field]: nullable && v === -1 ? null : v })
                     }}
                   >
-                    {(field === 'unit' || field === 'volume' || field === 'weight') && (
+                    {(field === 'unit' || field === 'volume' || field === 'weight' || field === 'ean') && (
                       <option value={-1}>{t('subiekt.colIgnore')}</option>
                     )}
                     {Array.from({ length: colCount }, (_, i) => (

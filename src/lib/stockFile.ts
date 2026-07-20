@@ -16,6 +16,8 @@ export interface ColumnMapping {
   volume: number | null
   /** Optional per-unit weight column; null when absent. */
   weight: number | null
+  /** Optional barcode/EAN column; null when absent. */
+  ean: number | null
 }
 
 /** Volume column unit → factor converting a cell value to m³. */
@@ -107,6 +109,7 @@ const HEADER_KEYWORDS: Record<keyof ColumnMapping, string[]> = {
   unit: ['jm', 'jedn', 'unit'],
   volume: ['objetosc', 'kubatura', 'volume', 'cbm', 'm3'],
   weight: ['waga', 'masa', 'weight'],
+  ean: ['ean', 'barcode', 'gtin', 'kodkreskowy'],
 }
 
 export function guessMapping(headerRow: Cell[]): ColumnMapping | null {
@@ -130,6 +133,7 @@ export function guessMapping(headerRow: Cell[]): ColumnMapping | null {
   const unit = find(HEADER_KEYWORDS.unit)
   const volume = find(HEADER_KEYWORDS.volume)
   const weight = find(HEADER_KEYWORDS.weight)
+  const ean = find(HEADER_KEYWORDS.ean)
   if (symbol === -1 || quantity === -1 || location === -1) return null
   return {
     symbol,
@@ -139,6 +143,7 @@ export function guessMapping(headerRow: Cell[]): ColumnMapping | null {
     unit: unit === -1 ? null : unit,
     volume: volume === -1 ? null : volume,
     weight: weight === -1 ? null : weight,
+    ean: ean === -1 ? null : ean,
   }
 }
 
@@ -208,6 +213,7 @@ export function rowsToStockItems(
       const w = toQuantity(row[mapping.weight] ?? 0) * weightFactor
       if (w > 0) unitWeightKg = w
     }
+    const ean = mapping.ean !== null ? String(row[mapping.ean] ?? '').trim() || undefined : undefined
     items.push({
       symbol,
       name: String(row[mapping.name] ?? '').trim(),
@@ -215,6 +221,7 @@ export function rowsToStockItems(
       unit: mapping.unit !== null ? String(row[mapping.unit] ?? '').trim() || undefined : undefined,
       unitVolumeM3,
       unitWeightKg,
+      ean,
       locationRaw,
       locations,
       otherLocations: other,
