@@ -204,6 +204,10 @@ export function escapeAction(): void {
     ed.setShowSubiektImport(false)
     return
   }
+  if (ed.showSuggest) {
+    ed.setShowSuggest(false)
+    return
+  }
   if (ed.mode !== 'select') {
     ed.setMode('select')
     return

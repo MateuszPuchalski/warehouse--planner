@@ -3,6 +3,7 @@ import { useStore } from 'zustand'
 import type { ColorMode } from '../types'
 import { useWarehouseStore } from '../store/useWarehouseStore'
 import { useEditorStore } from '../store/useEditorStore'
+import { useStockStore } from '../store/useStockStore'
 import { undo, redo } from '../lib/editorActions'
 import { exportLayoutFile, importLayoutFile } from '../lib/persistence'
 import { useI18nStore, useT, type Lang } from '../lib/i18n'
@@ -15,6 +16,8 @@ export function TopBar() {
   const setColorMode = useEditorStore((s) => s.setColorMode)
   const setShowPresetManager = useEditorStore((s) => s.setShowPresetManager)
   const setShowSubiektImport = useEditorStore((s) => s.setShowSubiektImport)
+  const setShowSuggest = useEditorStore((s) => s.setShowSuggest)
+  const hasStock = useStockStore((s) => s.items.length > 0)
   const showToast = useEditorStore((s) => s.showToast)
   const lang = useI18nStore((s) => s.lang)
   const setLang = useI18nStore((s) => s.setLang)
@@ -82,6 +85,14 @@ export function TopBar() {
 
         <button className="btn btn-accent" onClick={() => setShowSubiektImport(true)}>
           {t('top.subiekt')}
+        </button>
+        <button
+          className="btn"
+          onClick={() => setShowSuggest(true)}
+          disabled={!hasStock}
+          title={hasStock ? undefined : t('suggest.needStock')}
+        >
+          {t('top.suggest')}
         </button>
         <button className="btn" onClick={() => setShowPresetManager(true)}>
           {t('top.presets')}

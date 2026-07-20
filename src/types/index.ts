@@ -230,6 +230,8 @@ export interface StockItem {
   unit?: string
   /** Per-unit volume in m³, imported from the file (used for volume-fill of slots). */
   unitVolumeM3?: number
+  /** Per-unit weight in kg, imported from the file (used by the free-slot suggester). */
+  unitWeightKg?: number
   /** Raw location field as exported, e.g. "A05-01-01 PALETA65 D02-04-06". */
   locationRaw: string
   /** Every rack-code address found in the raw field. */
