@@ -82,6 +82,16 @@ const en = {
   'toast.stockImportFailed': 'Stock import failed: {msg}',
 
   'subiekt.title': 'Import stock from Subiekt GT',
+  'bridge.title': 'Live connection',
+  'bridge.url': 'Bridge URL',
+  'bridge.refresh': 'Refresh now',
+  'bridge.auto': 'Auto-refresh',
+  'bridge.interval': 'every {s}s',
+  'bridge.lastSync': 'Synced at {at}',
+  'bridge.syncing': 'Syncing…',
+  'bridge.error': 'Sync failed: {msg}',
+  'bridge.never': 'Not connected yet — set the bridge URL and refresh.',
+  'top.syncNow': 'Refresh stock from Subiekt bridge',
   'subiekt.pickFile': 'Choose XLSX / CSV file…',
   'subiekt.help':
     'Export the product list from Subiekt GT (with the Lokalizacja column, e.g. "A01-02-03" = aisle A, rack 01, column 02, level 03) to Excel or CSV and load it here. Rack sizes and rows are inferred from the codes; slots are filled with the products.',
@@ -293,6 +303,10 @@ const en = {
   'mode.wall': 'wall',
   'mode.delete': 'delete',
   'sb.walls': '· {n} walls',
+  'sb.stock': 'Stock: {src} · {at} · {n} pos.',
+  'sb.stockErr': 'Stock: sync error',
+  'sb.srcBridge': 'bridge',
+  'sb.srcFile': 'file',
   'sb.hints':
     'V select · P place · W wall · R rotate · X delete · Del remove · Ctrl+Z undo · Esc cancel',
 }
@@ -373,6 +387,16 @@ const pl: Record<TranslationKey, string> = {
   'toast.stockImportFailed': 'Import stanów nieudany: {msg}',
 
   'subiekt.title': 'Import stanów z Subiekt GT',
+  'bridge.title': 'Połączenie na żywo',
+  'bridge.url': 'Adres mostu',
+  'bridge.refresh': 'Odśwież teraz',
+  'bridge.auto': 'Auto-odświeżanie',
+  'bridge.interval': 'co {s}s',
+  'bridge.lastSync': 'Zsynchronizowano o {at}',
+  'bridge.syncing': 'Synchronizacja…',
+  'bridge.error': 'Błąd synchronizacji: {msg}',
+  'bridge.never': 'Brak połączenia — ustaw adres mostu i odśwież.',
+  'top.syncNow': 'Odśwież stany z mostu Subiekt',
   'subiekt.pickFile': 'Wybierz plik XLSX / CSV…',
   'subiekt.help':
     'Wyeksportuj listę towarów z Subiekta GT (z kolumną Lokalizacja, np. „A01-02-03” = alejka A, regał 01, kolumna 02, poziom 03) do Excela lub CSV i wczytaj tutaj. Rozmiary regałów i rzędy są wyliczane z kodów; sloty wypełniane są towarami.',
@@ -584,6 +608,10 @@ const pl: Record<TranslationKey, string> = {
   'mode.wall': 'ściana',
   'mode.delete': 'usuwanie',
   'sb.walls': '· ściany: {n}',
+  'sb.stock': 'Stany: {src} · {at} · {n} poz.',
+  'sb.stockErr': 'Stany: błąd synchronizacji',
+  'sb.srcBridge': 'most',
+  'sb.srcFile': 'plik',
   'sb.hints':
     'V zaznaczanie · P stawianie · W ściana · R obrót · X usuwanie · Del usuń · Ctrl+Z cofnij · Esc anuluj',
 }

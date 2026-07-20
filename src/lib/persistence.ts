@@ -218,6 +218,23 @@ export function saveStock(state: import('../types').StockState): void {
   writeStored(STOCK_KEY, state)
 }
 
+// ---------- Occupancy history ----------
+
+const HISTORY_KEY = 'wp:history:v1'
+const HISTORY_LIMIT = 1000
+
+export function loadHistory(): import('../types').HistorySnapshot[] {
+  const data = readStored<import('../types').HistorySnapshot[]>(HISTORY_KEY)
+  return Array.isArray(data) ? data : []
+}
+
+/** Append a snapshot to the ring buffer (capped at HISTORY_LIMIT) and persist. */
+export function appendHistory(snapshot: import('../types').HistorySnapshot): void {
+  const next = [...loadHistory(), snapshot]
+  if (next.length > HISTORY_LIMIT) next.splice(0, next.length - HISTORY_LIMIT)
+  writeStored(HISTORY_KEY, next)
+}
+
 // ---------- Layout presets ----------
 
 export function listPresets(): Record<string, WarehouseLayout> {

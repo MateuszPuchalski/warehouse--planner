@@ -229,3 +229,46 @@ export function rowsToStockItems(
   }
   return { items, noLocation }
 }
+
+/** One record as returned by the LAN bridge (`GET /api/stock`). */
+export interface BridgeRecord {
+  symbol: string
+  name?: string
+  quantity?: number | string
+  unit?: string
+  /** Raw location field, e.g. "A05-01-01 PALETA65" — parsed client-side. */
+  locationRaw?: string
+  ean?: string
+  /** Per-unit volume in m³ (already normalized by the bridge). */
+  unitVolumeM3?: number
+  /** Per-unit weight in kg (already normalized by the bridge). */
+  unitWeightKg?: number
+}
+
+/**
+ * Map bridge JSON records to StockItem[], reusing the same location parser as the
+ * file import so `A01-02-03` addressing has a single source of truth. Records
+ * without a symbol are skipped.
+ */
+export function objectsToStockItems(records: BridgeRecord[]): StockItem[] {
+  const items: StockItem[] = []
+  for (const r of records) {
+    const symbol = String(r.symbol ?? '').trim()
+    if (!symbol) continue
+    const locationRaw = String(r.locationRaw ?? '').trim()
+    const { locations, other } = locationRaw ? parseLocationField(locationRaw) : { locations: [], other: [] }
+    items.push({
+      symbol,
+      name: String(r.name ?? '').trim(),
+      quantity: toQuantity(r.quantity ?? 0),
+      unit: r.unit ? String(r.unit).trim() || undefined : undefined,
+      unitVolumeM3: typeof r.unitVolumeM3 === 'number' && r.unitVolumeM3 > 0 ? r.unitVolumeM3 : undefined,
+      unitWeightKg: typeof r.unitWeightKg === 'number' && r.unitWeightKg > 0 ? r.unitWeightKg : undefined,
+      ean: r.ean ? String(r.ean).trim() || undefined : undefined,
+      locationRaw,
+      locations,
+      otherLocations: other,
+    })
+  }
+  return items
+}

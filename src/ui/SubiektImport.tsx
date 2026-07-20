@@ -13,6 +13,7 @@ import {
   type WeightUnit,
 } from '../lib/stockFile'
 import { buildPlan } from '../lib/autoBuild'
+import { recordHistorySnapshot } from '../lib/history'
 import { useT, type TranslationKey } from '../lib/i18n'
 
 const MAPPING_FIELDS = ['symbol', 'name', 'quantity', 'location', 'unit', 'volume', 'weight', 'ean'] as const
@@ -30,6 +31,14 @@ export function SubiektImport() {
   const setItems = useStockStore((s) => s.setItems)
   const stockCount = useStockStore((s) => s.items.length)
   const importedAt = useStockStore((s) => s.importedAt)
+  const source = useStockStore((s) => s.source)
+  const bridgeUrl = useStockStore((s) => s.bridgeUrl)
+  const setBridgeUrl = useStockStore((s) => s.setBridgeUrl)
+  const autoRefreshSec = useStockStore((s) => s.autoRefreshSec)
+  const setAutoRefresh = useStockStore((s) => s.setAutoRefresh)
+  const refreshFromBridge = useStockStore((s) => s.refreshFromBridge)
+  const syncing = useStockStore((s) => s.syncing)
+  const syncError = useStockStore((s) => s.syncError)
   const t = useT()
 
   const fileRef = useRef<HTMLInputElement>(null)
@@ -101,6 +110,11 @@ export function SubiektImport() {
     }
     setItems(conversion.items, 'file')
     setColorMode('stock')
+    recordHistorySnapshot(
+      useWarehouseStore.getState().layout,
+      useStockStore.getState().index,
+      conversion.items,
+    )
     showToast(
       t('toast.stockImported', {
         items: conversion.items.length,
@@ -129,8 +143,60 @@ export function SubiektImport() {
           </button>
         </div>
 
+        <div className="mb-3 flex flex-col gap-2 rounded-md border border-border bg-panel2 p-3">
+          <div className="panel-title">{t('bridge.title')}</div>
+          <div className="flex items-center gap-2">
+            <input
+              className="field flex-1"
+              value={bridgeUrl}
+              placeholder="http://localhost:8710/api/stock"
+              onChange={(e) => setBridgeUrl(e.target.value)}
+            />
+            <button
+              className="btn btn-accent"
+              onClick={() => {
+                setColorMode('stock')
+                void refreshFromBridge()
+              }}
+              disabled={syncing || !bridgeUrl.trim()}
+            >
+              {syncing ? t('bridge.syncing') : t('bridge.refresh')}
+            </button>
+          </div>
+          <label className="flex items-center gap-2 text-[11px] text-muted">
+            <input
+              type="checkbox"
+              checked={autoRefreshSec > 0}
+              onChange={(e) => setAutoRefresh(e.target.checked ? 60 : 0)}
+            />
+            {t('bridge.auto')}
+            {autoRefreshSec > 0 && (
+              <select
+                className="field w-24"
+                value={autoRefreshSec}
+                onChange={(e) => setAutoRefresh(Number(e.target.value))}
+              >
+                {[30, 60, 300].map((s) => (
+                  <option key={s} value={s}>
+                    {t('bridge.interval', { s })}
+                  </option>
+                ))}
+              </select>
+            )}
+          </label>
+          <div className="text-[11px]">
+            {syncError ? (
+              <span className="text-danger">{t('bridge.error', { msg: syncError })}</span>
+            ) : source === 'bridge' && importedAt ? (
+              <span className="text-ok">{t('bridge.lastSync', { at: new Date(importedAt).toLocaleTimeString() })}</span>
+            ) : (
+              <span className="text-muted">{t('bridge.never')}</span>
+            )}
+          </div>
+        </div>
+
         <div className="flex items-center gap-2">
-          <button className="btn btn-accent" onClick={() => fileRef.current?.click()}>
+          <button className="btn" onClick={() => fileRef.current?.click()}>
             {t('subiekt.pickFile')}
           </button>
           <input
