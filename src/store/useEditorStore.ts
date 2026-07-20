@@ -1,7 +1,11 @@
 import { create } from 'zustand'
 import type { ColorMode, EditorMode, GhostState, RackRotation, SlotKey, WallDraft, ZoneDraft } from '../types'
 
+export type AppView = 'home' | 'editor'
+
 export interface EditorState {
+  /** Which top-level screen is shown: the launcher home screen or the editor. */
+  view: AppView
   mode: EditorMode
   placingTemplateId: string | null
   placeRotation: RackRotation
@@ -49,6 +53,7 @@ export interface EditorState {
   setShowSubiektImport: (open: boolean) => void
   setShowSuggest: (open: boolean) => void
   setShowDashboard: (open: boolean) => void
+  setView: (view: AppView) => void
   setSuggestedSlots: (slots: Set<string>) => void
   setFoundSlots: (slots: Set<string>) => void
   openTemplateEditor: (id: string | null) => void
@@ -58,6 +63,7 @@ export interface EditorState {
 let toastTimer: number | undefined
 
 export const useEditorStore = create<EditorState>()((set, get) => ({
+  view: 'home',
   mode: 'select',
   placingTemplateId: null,
   placeRotation: 0,
@@ -173,6 +179,7 @@ export const useEditorStore = create<EditorState>()((set, get) => ({
   setShowSubiektImport: (showSubiektImport) => set({ showSubiektImport }),
   setShowSuggest: (showSuggest) => set({ showSuggest }),
   setShowDashboard: (showDashboard) => set({ showDashboard }),
+  setView: (view) => set({ view }),
   setSuggestedSlots: (suggestedSlots) => set({ suggestedSlots }),
   setFoundSlots: (foundSlots) => set({ foundSlots }),
   openTemplateEditor: (editingTemplateId) => set({ editingTemplateId }),

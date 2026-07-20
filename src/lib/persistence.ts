@@ -320,6 +320,21 @@ export function seedTemplates(): Record<string, RackTemplate> {
   return Object.fromEntries(templates.map((t) => [t.id, t]))
 }
 
+/** A fresh empty warehouse: default floor + perimeter walls, seed templates, no racks. */
+export function newBlankLayout(name: string): WarehouseLayout {
+  const floor: FloorConfig = { ...FLOOR_DEFAULTS }
+  return {
+    schemaVersion: 1,
+    name,
+    floor,
+    templates: seedTemplates(),
+    racks: {},
+    walls: Object.fromEntries(makePerimeterWalls(floor).map((w) => [w.id, w])),
+    zones: {},
+    updatedAt: new Date().toISOString(),
+  }
+}
+
 export function seedLayout(): WarehouseLayout {
   const racks: RackInstance[] = [
     {

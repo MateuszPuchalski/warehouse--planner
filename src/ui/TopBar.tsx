@@ -19,6 +19,7 @@ export function TopBar() {
   const setShowSubiektImport = useEditorStore((s) => s.setShowSubiektImport)
   const setShowSuggest = useEditorStore((s) => s.setShowSuggest)
   const setShowDashboard = useEditorStore((s) => s.setShowDashboard)
+  const setView = useEditorStore((s) => s.setView)
   const hasStock = useStockStore((s) => s.items.length > 0)
   const showToast = useEditorStore((s) => s.showToast)
   const lang = useI18nStore((s) => s.lang)
@@ -48,9 +49,13 @@ export function TopBar() {
 
   return (
     <header className="flex h-11 shrink-0 items-center gap-3 border-b border-border bg-panel px-3">
-      <span className="text-sm font-semibold tracking-wide whitespace-nowrap text-accent">
+      <button
+        className="text-sm font-semibold tracking-wide whitespace-nowrap text-accent hover:opacity-80"
+        onClick={() => setView('home')}
+        title={t('top.home')}
+      >
         📦 {t('app.title')}
-      </span>
+      </button>
       <input
         value={layoutName}
         onChange={(e) => setLayoutName(e.target.value)}
