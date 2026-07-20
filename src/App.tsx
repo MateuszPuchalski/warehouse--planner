@@ -21,6 +21,7 @@ import { PresetManager } from './ui/PresetManager'
 import { SubiektImport } from './ui/SubiektImport'
 import { SuggestPanel } from './ui/SuggestPanel'
 import { Dashboard } from './ui/Dashboard'
+import { HomeScreen } from './ui/HomeScreen'
 
 function Toast() {
   const toast = useEditorStore((s) => s.toast)
@@ -54,6 +55,7 @@ export default function App() {
   const showSubiektImport = useEditorStore((s) => s.showSubiektImport)
   const showSuggest = useEditorStore((s) => s.showSuggest)
   const showDashboard = useEditorStore((s) => s.showDashboard)
+  const view = useEditorStore((s) => s.view)
   const lang = useI18nStore((s) => s.lang)
 
   // Keep the document language and title in sync with the UI language.
@@ -123,6 +125,15 @@ export default function App() {
       window.clearTimeout(timer)
     }
   }, [])
+
+  if (view === 'home') {
+    return (
+      <div className="h-dvh w-screen overflow-hidden bg-bg font-sans text-sm text-text">
+        <HomeScreen />
+        <Toast />
+      </div>
+    )
+  }
 
   return (
     <div className="flex h-dvh w-screen flex-col overflow-hidden bg-bg font-sans text-sm text-text select-none">

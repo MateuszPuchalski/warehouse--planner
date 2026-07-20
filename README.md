@@ -59,6 +59,10 @@ npm run dev     # http://localhost:5173
   warnings (stat tiles + meters), free slots broken down by carrier (pallet / carton / bin),
   and a stock summary (SKUs, total quantity, located / pallet-only / unlocated). Metrics are
   aggregated in `src/lib/kpi.ts` (`computeKpis`) reusing the existing slot/volume/aisle helpers.
+- **Home screen** — the app opens on a launcher (`src/ui/HomeScreen.tsx`) to start a new empty
+  warehouse, continue the last one, open the built-in „Regały" sample, import a JSON layout, or open
+  a saved plan (preset). The title bar acts as a "Home" button to return. Editor and home are gated
+  by an editor-store `view` flag; opening a plan clears undo history so it can't cross warehouses.
 - **Aisle validation** — facing racks closer than the minimum aisle width get a red
   zone + distance badge; live distance guides while placing. Gaps ≤ 0.5 m count as
   intentional back-to-back (flue) placement, and a gap that contains another rack
