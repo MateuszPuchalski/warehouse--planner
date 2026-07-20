@@ -208,6 +208,10 @@ export function escapeAction(): void {
     ed.setShowSuggest(false)
     return
   }
+  if (ed.showDashboard) {
+    ed.setShowDashboard(false)
+    return
+  }
   if (ed.mode !== 'select') {
     ed.setMode('select')
     return

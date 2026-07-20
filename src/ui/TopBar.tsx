@@ -18,6 +18,7 @@ export function TopBar() {
   const setShowPresetManager = useEditorStore((s) => s.setShowPresetManager)
   const setShowSubiektImport = useEditorStore((s) => s.setShowSubiektImport)
   const setShowSuggest = useEditorStore((s) => s.setShowSuggest)
+  const setShowDashboard = useEditorStore((s) => s.setShowDashboard)
   const hasStock = useStockStore((s) => s.items.length > 0)
   const showToast = useEditorStore((s) => s.showToast)
   const lang = useI18nStore((s) => s.lang)
@@ -96,6 +97,9 @@ export function TopBar() {
           title={hasStock ? undefined : t('suggest.needStock')}
         >
           {t('top.suggest')}
+        </button>
+        <button className="btn" onClick={() => setShowDashboard(true)}>
+          {t('top.kpi')}
         </button>
         <button className="btn" onClick={() => setShowPresetManager(true)}>
           {t('top.presets')}
