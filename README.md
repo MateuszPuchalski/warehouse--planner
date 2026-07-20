@@ -44,6 +44,12 @@ npm run dev     # http://localhost:5173
   modes and toggled by "Show goods" in the Floor panel; carrier type is a template field
   (auto-inferred from rack depth otherwise). The slot inspector lists each product with a
   placeholder tile, quantity, and its share of the slot volume.
+- **Suggest free slots (put-away)** — the "Suggest slots" button opens a panel where you pick a
+  product (SKU from imported stock) and a quantity; the app ranks every free slot that fits by
+  volume, weight (per-unit weight is an optional import column, kg/g), and carrier type, sorted by
+  tightest volume fit (least wasted space). Clicking a result selects the rack + slot; all matches
+  are highlighted green in 3D. The scorer (`src/lib/suggest.ts`) is structured to grow later
+  factors (SKU consolidation, dock proximity, lower levels).
 - **Aisle validation** — facing racks closer than the minimum aisle width get a red
   zone + distance badge; live distance guides while placing. Gaps ≤ 0.5 m count as
   intentional back-to-back (flue) placement, and a gap that contains another rack

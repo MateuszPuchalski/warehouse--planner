@@ -14,11 +14,17 @@ export interface ColumnMapping {
   unit: number | null
   /** Optional per-unit volume column; null when absent. */
   volume: number | null
+  /** Optional per-unit weight column; null when absent. */
+  weight: number | null
 }
 
 /** Volume column unit → factor converting a cell value to m³. */
 export type VolumeUnit = 'm3' | 'dm3' | 'cm3'
 export const VOLUME_UNIT_FACTORS: Record<VolumeUnit, number> = { m3: 1, dm3: 1e-3, cm3: 1e-6 }
+
+/** Weight column unit → factor converting a cell value to kg. */
+export type WeightUnit = 'kg' | 'g'
+export const WEIGHT_UNIT_FACTORS: Record<WeightUnit, number> = { kg: 1, g: 1e-3 }
 
 export interface ParsedFile {
   rows: Grid
@@ -100,6 +106,7 @@ const HEADER_KEYWORDS: Record<keyof ColumnMapping, string[]> = {
   location: ['lokalizacja', 'lokacja', 'adres', 'location', 'pole'],
   unit: ['jm', 'jedn', 'unit'],
   volume: ['objetosc', 'kubatura', 'volume', 'cbm', 'm3'],
+  weight: ['waga', 'masa', 'weight'],
 }
 
 export function guessMapping(headerRow: Cell[]): ColumnMapping | null {
@@ -122,6 +129,7 @@ export function guessMapping(headerRow: Cell[]): ColumnMapping | null {
   const location = find(HEADER_KEYWORDS.location)
   const unit = find(HEADER_KEYWORDS.unit)
   const volume = find(HEADER_KEYWORDS.volume)
+  const weight = find(HEADER_KEYWORDS.weight)
   if (symbol === -1 || quantity === -1 || location === -1) return null
   return {
     symbol,
@@ -130,6 +138,7 @@ export function guessMapping(headerRow: Cell[]): ColumnMapping | null {
     location,
     unit: unit === -1 ? null : unit,
     volume: volume === -1 ? null : volume,
+    weight: weight === -1 ? null : weight,
   }
 }
 
@@ -175,10 +184,12 @@ export function rowsToStockItems(
   mapping: ColumnMapping,
   skipHeader: boolean,
   volumeUnit: VolumeUnit = 'm3',
+  weightUnit: WeightUnit = 'kg',
 ): StockConversion {
   const items: StockItem[] = []
   let noLocation = 0
   const volumeFactor = VOLUME_UNIT_FACTORS[volumeUnit]
+  const weightFactor = WEIGHT_UNIT_FACTORS[weightUnit]
   for (const row of skipHeader ? rows.slice(1) : rows) {
     const symbol = String(row[mapping.symbol] ?? '').trim()
     if (!symbol) continue
@@ -192,12 +203,18 @@ export function rowsToStockItems(
       const v = toQuantity(row[mapping.volume] ?? 0) * volumeFactor
       if (v > 0) unitVolumeM3 = v
     }
+    let unitWeightKg: number | undefined
+    if (mapping.weight !== null) {
+      const w = toQuantity(row[mapping.weight] ?? 0) * weightFactor
+      if (w > 0) unitWeightKg = w
+    }
     items.push({
       symbol,
       name: String(row[mapping.name] ?? '').trim(),
       quantity: toQuantity(row[mapping.quantity] ?? 0),
       unit: mapping.unit !== null ? String(row[mapping.unit] ?? '').trim() || undefined : undefined,
       unitVolumeM3,
+      unitWeightKg,
       locationRaw,
       locations,
       otherLocations: other,

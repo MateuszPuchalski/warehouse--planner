@@ -19,6 +19,9 @@ export interface EditorState {
   pointer: { x: number; z: number } | null
   showPresetManager: boolean
   showSubiektImport: boolean
+  showSuggest: boolean
+  /** Slots highlighted as put-away suggestions, keyed `${rackId}:${bay}:${level}`. */
+  suggestedSlots: Set<string>
   editingTemplateId: string | null
   toast: { msg: string; kind: 'info' | 'error' } | null
 
@@ -41,6 +44,8 @@ export interface EditorState {
   setPointer: (p: { x: number; z: number } | null) => void
   setShowPresetManager: (open: boolean) => void
   setShowSubiektImport: (open: boolean) => void
+  setShowSuggest: (open: boolean) => void
+  setSuggestedSlots: (slots: Set<string>) => void
   openTemplateEditor: (id: string | null) => void
   showToast: (msg: string, kind?: 'info' | 'error') => void
 }
@@ -65,18 +70,21 @@ export const useEditorStore = create<EditorState>()((set, get) => ({
   pointer: null,
   showPresetManager: false,
   showSubiektImport: false,
+  showSuggest: false,
+  suggestedSlots: new Set<string>(),
   editingTemplateId: null,
   toast: null,
 
   setMode: (mode) =>
-    set({
+    set((s) => ({
       mode,
       ghost: null,
       movingRackId: null,
       wallDraft: null,
       zoneDraft: null,
+      suggestedSlots: s.suggestedSlots.size ? new Set<string>() : s.suggestedSlots,
       ...(mode !== 'place' ? { placingTemplateId: null } : {}),
-    }),
+    })),
 
   armPlace: (templateId) =>
     set({
@@ -155,6 +163,8 @@ export const useEditorStore = create<EditorState>()((set, get) => ({
 
   setShowPresetManager: (showPresetManager) => set({ showPresetManager }),
   setShowSubiektImport: (showSubiektImport) => set({ showSubiektImport }),
+  setShowSuggest: (showSuggest) => set({ showSuggest }),
+  setSuggestedSlots: (suggestedSlots) => set({ suggestedSlots }),
   openTemplateEditor: (editingTemplateId) => set({ editingTemplateId }),
 
   showToast: (msg, kind = 'info') => {

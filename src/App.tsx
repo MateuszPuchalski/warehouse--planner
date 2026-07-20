@@ -19,6 +19,7 @@ import { StatusBar } from './ui/StatusBar'
 import { TemplateEditor } from './ui/TemplateEditor'
 import { PresetManager } from './ui/PresetManager'
 import { SubiektImport } from './ui/SubiektImport'
+import { SuggestPanel } from './ui/SuggestPanel'
 
 function Toast() {
   const toast = useEditorStore((s) => s.toast)
@@ -50,6 +51,7 @@ export default function App() {
   const editingTemplateId = useEditorStore((s) => s.editingTemplateId)
   const showPresetManager = useEditorStore((s) => s.showPresetManager)
   const showSubiektImport = useEditorStore((s) => s.showSubiektImport)
+  const showSuggest = useEditorStore((s) => s.showSuggest)
   const lang = useI18nStore((s) => s.lang)
 
   // Keep the document language and title in sync with the UI language.
@@ -134,6 +136,7 @@ export default function App() {
       {editingTemplateId !== null && <TemplateEditor key={editingTemplateId} />}
       {showPresetManager && <PresetManager />}
       {showSubiektImport && <SubiektImport />}
+      {showSuggest && <SuggestPanel />}
       <Toast />
     </div>
   )
