@@ -232,6 +232,8 @@ export interface StockItem {
   unitVolumeM3?: number
   /** Per-unit weight in kg, imported from the file (used by the free-slot suggester). */
   unitWeightKg?: number
+  /** Barcode / EAN, imported from the file (searchable). */
+  ean?: string
   /** Raw location field as exported, e.g. "A05-01-01 PALETA65 D02-04-06". */
   locationRaw: string
   /** Every rack-code address found in the raw field. */
