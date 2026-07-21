@@ -9,6 +9,10 @@ import { useT, type TranslationKey } from '../lib/i18n'
 export function StatusBar() {
   const layout = useWarehouseStore((s) => s.layout)
   const stockIndex = useStockStore((s) => s.index)
+  const stockSource = useStockStore((s) => s.source)
+  const importedAt = useStockStore((s) => s.importedAt)
+  const stockCount = useStockStore((s) => s.items.length)
+  const syncError = useStockStore((s) => s.syncError)
   const pointer = useEditorStore((s) => s.pointer)
   const mode = useEditorStore((s) => s.mode)
   const selectRack = useEditorStore((s) => s.selectRack)
@@ -58,6 +62,22 @@ export function StatusBar() {
       <span>
         {t('sb.mode')}: {t(`mode.${mode}` as TranslationKey)}
       </span>
+      {syncError ? (
+        <span className="font-medium text-danger" title={syncError}>
+          {t('sb.stockErr')}
+        </span>
+      ) : (
+        stockSource &&
+        importedAt && (
+          <span className={stockSource === 'bridge' ? 'text-ok' : undefined}>
+            {t('sb.stock', {
+              src: t(stockSource === 'bridge' ? 'sb.srcBridge' : 'sb.srcFile'),
+              at: new Date(importedAt).toLocaleTimeString(),
+              n: stockCount,
+            })}
+          </span>
+        )
+      )}
       <span className="ml-auto hidden lg:inline">{t('sb.hints')}</span>
     </footer>
   )

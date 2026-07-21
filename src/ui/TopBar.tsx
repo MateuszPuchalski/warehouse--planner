@@ -21,6 +21,9 @@ export function TopBar() {
   const setShowDashboard = useEditorStore((s) => s.setShowDashboard)
   const setView = useEditorStore((s) => s.setView)
   const hasStock = useStockStore((s) => s.items.length > 0)
+  const hasBridge = useStockStore((s) => s.bridgeUrl.trim().length > 0)
+  const syncing = useStockStore((s) => s.syncing)
+  const refreshFromBridge = useStockStore((s) => s.refreshFromBridge)
   const showToast = useEditorStore((s) => s.showToast)
   const lang = useI18nStore((s) => s.lang)
   const setLang = useI18nStore((s) => s.setLang)
@@ -95,6 +98,19 @@ export function TopBar() {
         <button className="btn btn-accent" onClick={() => setShowSubiektImport(true)}>
           {t('top.subiekt')}
         </button>
+        {hasBridge && (
+          <button
+            className="btn"
+            onClick={() => {
+              setColorMode('stock')
+              void refreshFromBridge()
+            }}
+            disabled={syncing}
+            title={t('top.syncNow')}
+          >
+            {syncing ? '⟳…' : '⟳'}
+          </button>
+        )}
         <button
           className="btn"
           onClick={() => setShowSuggest(true)}

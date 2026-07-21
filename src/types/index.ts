@@ -250,4 +250,16 @@ export interface StockState {
   source: StockSource | null
   /** Phase B: URL of the LAN bridge service exposing GET /api/stock. */
   bridgeUrl: string
+  /** Auto-refresh interval in seconds against the bridge; 0 = off. */
+  autoRefreshSec: number
+}
+
+/** One point-in-time occupancy snapshot, appended on every stock sync. */
+export interface HistorySnapshot {
+  at: string
+  fillPct: number
+  volumeUtilPct: number
+  occupiedSlots: number
+  slotCount: number
+  overVolumeSlots: number
 }

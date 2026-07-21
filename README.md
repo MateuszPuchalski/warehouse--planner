@@ -107,15 +107,26 @@ npm run dev     # http://localhost:5173
 | Esc | Close modal / cancel placement / deselect |
 | Ctrl+Z / Ctrl+Y | Undo / redo |
 
-## Subiekt GT — going live later
+## Subiekt GT — live connection
 
-The import pipeline is `source → StockItem[] → structure inference → apply`, so a live
-connection only swaps the source. The intended next step is a small read-only bridge
-service on the LAN (Node + `mssql`, read-only SQL login) exposing `GET /api/stock` with
-the same JSON shape the file parser produces, reading `tw__Towar` (symbol, name, location
-field — one of `tw_Pole1..8` or `tw_Uwagi`) joined with `tw_Stan` (quantity per magazyn).
-The stock store already persists a bridge URL for a future "Refresh from Subiekt" button.
-Sfera GT is only needed if the planner ever writes back to Subiekt.
+The planner can run as a **live digital twin** instead of a static import. A small
+read-only bridge service on the LAN ([`/bridge`](bridge/README.md), Node + `mssql`,
+read-only SQL login) exposes `GET /api/stock` → `BridgeRecord[]`, reading `tw__Towar`
+(symbol, name, EAN, location field — one of `tw_Pole1..8` or `tw_Uwagi`) joined with
+`tw_Stan` (quantity per magazyn). Location parsing (`A01-02-03`) stays on the client
+(`objectsToStockItems` → `parseLocationField`), so the bridge is a thin projection with
+a single source of truth for addressing.
+
+In the app, **Subiekt GT → Live connection**: set the bridge URL, hit **Refresh now**
+(or the ⟳ button in the top bar), and optionally enable **auto-refresh** (30/60/300 s,
+paused while the tab is hidden). The last sync time / errors show in that panel and the
+status bar. Every refresh — and every file import — records an occupancy **history
+snapshot** (`wp:history:v1`, capped ring buffer) as groundwork for rotation/forecast
+features.
+
+Run the bridge with sample data and no database via `cd bridge && npm run mock`. See
+[`bridge/README.md`](bridge/README.md) for real-DB config, CORS, and the mixed-content
+(HTTP/HTTPS) caveat. Sfera GT is only needed if the planner ever writes back to Subiekt.
 
 ## Stack
 

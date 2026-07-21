@@ -22,6 +22,7 @@ import { SubiektImport } from './ui/SubiektImport'
 import { SuggestPanel } from './ui/SuggestPanel'
 import { Dashboard } from './ui/Dashboard'
 import { HomeScreen } from './ui/HomeScreen'
+import { BridgeSync } from './ui/BridgeSync'
 
 function Toast() {
   const toast = useEditorStore((s) => s.toast)
@@ -151,6 +152,7 @@ export default function App() {
       {showSubiektImport && <SubiektImport />}
       {showSuggest && <SuggestPanel />}
       {showDashboard && <Dashboard />}
+      <BridgeSync />
       <Toast />
     </div>
   )
