@@ -235,6 +235,19 @@ export function appendHistory(snapshot: import('../types').HistorySnapshot): voi
   writeStored(HISTORY_KEY, next)
 }
 
+// ---------- SKU rotation stats ----------
+
+const SKU_STATS_KEY = 'wp:skuStats:v1'
+
+export function loadSkuStats(): Record<string, import('../types').SkuStat> {
+  const data = readStored<Record<string, import('../types').SkuStat>>(SKU_STATS_KEY)
+  return data && typeof data === 'object' ? data : {}
+}
+
+export function saveSkuStats(stats: Record<string, import('../types').SkuStat>): void {
+  writeStored(SKU_STATS_KEY, stats)
+}
+
 // ---------- Layout presets ----------
 
 export function listPresets(): Record<string, WarehouseLayout> {

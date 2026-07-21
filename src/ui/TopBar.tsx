@@ -19,6 +19,7 @@ export function TopBar() {
   const setShowSubiektImport = useEditorStore((s) => s.setShowSubiektImport)
   const setShowSuggest = useEditorStore((s) => s.setShowSuggest)
   const setShowDashboard = useEditorStore((s) => s.setShowDashboard)
+  const setShowInsights = useEditorStore((s) => s.setShowInsights)
   const setView = useEditorStore((s) => s.setView)
   const hasStock = useStockStore((s) => s.items.length > 0)
   const hasBridge = useStockStore((s) => s.bridgeUrl.trim().length > 0)
@@ -121,6 +122,9 @@ export function TopBar() {
         </button>
         <button className="btn" onClick={() => setShowDashboard(true)}>
           {t('top.kpi')}
+        </button>
+        <button className="btn" onClick={() => setShowInsights(true)}>
+          {t('top.insights')}
         </button>
         <button className="btn" onClick={() => setShowPresetManager(true)}>
           {t('top.presets')}
