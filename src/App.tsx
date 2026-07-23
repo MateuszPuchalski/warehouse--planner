@@ -21,6 +21,7 @@ import { PresetManager } from './ui/PresetManager'
 import { SubiektImport } from './ui/SubiektImport'
 import { SuggestPanel } from './ui/SuggestPanel'
 import { Dashboard } from './ui/Dashboard'
+import { Insights } from './ui/Insights'
 import { HomeScreen } from './ui/HomeScreen'
 import { BridgeSync } from './ui/BridgeSync'
 
@@ -56,6 +57,7 @@ export default function App() {
   const showSubiektImport = useEditorStore((s) => s.showSubiektImport)
   const showSuggest = useEditorStore((s) => s.showSuggest)
   const showDashboard = useEditorStore((s) => s.showDashboard)
+  const showInsights = useEditorStore((s) => s.showInsights)
   const view = useEditorStore((s) => s.view)
   const lang = useI18nStore((s) => s.lang)
 
@@ -152,6 +154,7 @@ export default function App() {
       {showSubiektImport && <SubiektImport />}
       {showSuggest && <SuggestPanel />}
       {showDashboard && <Dashboard />}
+      {showInsights && <Insights />}
       <BridgeSync />
       <Toast />
     </div>

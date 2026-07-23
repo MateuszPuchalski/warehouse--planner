@@ -263,3 +263,26 @@ export interface HistorySnapshot {
   slotCount: number
   overVolumeSlots: number
 }
+
+/**
+ * Rolling rotation counter for a single SKU, updated differentially on every
+ * stock sync (one record per symbol, not a time series). Feeds the fast-mover /
+ * dead-stock analysis in the Insights panel.
+ */
+export interface SkuStat {
+  symbol: string
+  name: string
+  /** First time this SKU was seen, and its quantity then (movement baseline). */
+  firstAt: string
+  firstQty: number
+  /** Most recent sync time and quantity. */
+  lastAt: string
+  lastQty: number
+  /** Last time the quantity actually changed (staleness clock). */
+  lastChangeAt: string
+  /** Cumulative units added / removed across all observed syncs. */
+  totalInflow: number
+  totalOutflow: number
+  /** Number of syncs in which this SKU was present. */
+  syncs: number
+}
