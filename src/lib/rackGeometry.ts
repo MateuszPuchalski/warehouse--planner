@@ -101,8 +101,21 @@ export interface MemberSets {
   decks: Member[]
 }
 
-/** Local-space transforms of every structural member of a rack. Computed once per template. */
-export function buildMembers(t: RackTemplate): MemberSets {
+/** Which end frames this rack should omit because a joined neighbour already provides them. */
+export interface FrameSkips {
+  skipStart?: boolean
+  skipEnd?: boolean
+}
+
+/**
+ * Local-space transforms of every structural member of a rack. Computed once per
+ * template (and per skip combination).
+ *
+ * In a joined run consecutive racks share one upright frame, so the downstream rack
+ * omits its low-end pair via `skipStart`. Beams already span upright-centre to
+ * upright-centre, so they meet exactly across the shared frame with no adjustment.
+ */
+export function buildMembers(t: RackTemplate, skips: FrameSkips = {}): MemberSets {
   const W = t.bays * t.bayWidth
   const offsets = getLevelOffsets(t)
   const H = offsets[t.levels]
@@ -110,6 +123,8 @@ export function buildMembers(t: RackTemplate): MemberSets {
 
   const uprights: Member[] = []
   for (let i = 0; i <= t.bays; i++) {
+    if (i === 0 && skips.skipStart) continue
+    if (i === t.bays && skips.skipEnd) continue
     const x = -W / 2 + i * t.bayWidth
     for (const z of [-halfD, halfD]) {
       uprights.push({ pos: [x, H / 2, z], scale: [t.uprightSize, H, t.uprightSize] })

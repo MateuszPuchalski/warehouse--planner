@@ -45,11 +45,19 @@ function MemberInstances({ members, material }: { members: Member[]; material: T
 export function RackFrame({
   template,
   materialOverride,
+  skipStart = false,
+  skipEnd = false,
 }: {
   template: RackTemplate
   materialOverride?: THREE.Material
+  /** Omit the low-end upright pair — a joined neighbour already provides that frame. */
+  skipStart?: boolean
+  skipEnd?: boolean
 }) {
-  const members = useMemo(() => buildMembers(template), [template])
+  const members = useMemo(
+    () => buildMembers(template, { skipStart, skipEnd }),
+    [template, skipStart, skipEnd],
+  )
   return (
     <group>
       <MemberInstances members={members.uprights} material={materialOverride ?? uprightMat} />

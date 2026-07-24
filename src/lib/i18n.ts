@@ -342,8 +342,9 @@ const en = {
   'sb.srcBridge': 'bridge',
   'sb.srcFile': 'file',
   'sb.hints':
-    'V select · P place · W wall · Z zone · R rotate · X delete · Shift+drag box-select · Arrows nudge · Ctrl+D duplicate · Alt+drag copy · Ctrl+Z undo · Esc cancel',
+    'V select · P place · W wall · Z zone · R rotate · X delete · Shift+drag box-select · Arrows nudge · Ctrl+D duplicate · Alt+drag copy · Ctrl no join · Ctrl+Z undo · Esc cancel',
 
+  'join.badge': 'Joined',
   'rack.posX': 'X',
   'rack.posZ': 'Z',
   'rack.array': 'Array…',
@@ -705,8 +706,9 @@ const pl: Record<TranslationKey, string> = {
   'sb.srcBridge': 'most',
   'sb.srcFile': 'plik',
   'sb.hints':
-    'V zaznaczanie · P stawianie · W ściana · Z strefa · R obrót · X usuwanie · Shift+przeciągnij zaznaczanie · Strzałki przesuwanie · Ctrl+D duplikat · Alt+przeciągnij kopia · Ctrl+Z cofnij · Esc anuluj',
+    'V zaznaczanie · P stawianie · W ściana · Z strefa · R obrót · X usuwanie · Shift+przeciągnij zaznaczanie · Strzałki przesuwanie · Ctrl+D duplikat · Alt+przeciągnij kopia · Ctrl bez łączenia · Ctrl+Z cofnij · Esc anuluj',
 
+  'join.badge': 'Połączone',
   'rack.posX': 'X',
   'rack.posZ': 'Z',
   'rack.array': 'Szyk…',

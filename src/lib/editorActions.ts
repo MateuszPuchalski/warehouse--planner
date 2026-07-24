@@ -1,7 +1,9 @@
 import type { GhostState, GroupGhostState, RackRotation, WallDraft, ZoneDraft } from '../types'
 import { useWarehouseStore, undo, redo, markHistoryBoundary } from '../store/useWarehouseStore'
 import { useEditorStore } from '../store/useEditorStore'
-import { clampGridCenter, gridToWorld, worldToGrid } from './grid'
+import { clampGridCenter, clampGridFree, gridToWorld, worldToGrid } from './grid'
+import { findJoinSnap } from './joinSnap'
+import { JOIN_TOL } from './runs'
 import { getFootprint } from './rackGeometry'
 import { isPlacementValid, rackIndex, validateGroupPlacement, type RackMove } from './collision'
 import { alignMoves, distributeMoves, type AlignMode } from './align'
@@ -10,20 +12,52 @@ import { MIN_WALL_CELLS, snapWallSegment } from './walls'
 import { MIN_ZONE_CELLS } from './zones'
 import { t } from './i18n'
 
-/** Snap a candidate footprint to the grid, clamp it to the floor and check validity. */
+/**
+ * Snap a candidate footprint to the grid, clamp it to the floor and check validity.
+ *
+ * A rack dropped near an aligned neighbour first tries to JOIN it — sharing the
+ * upright frame, which needs a fractional (un-rounded) centre — and only falls back
+ * to plain grid snapping when no join is in reach or the caller disables it.
+ */
 export function computeGhost(
   templateId: string,
   worldX: number,
   worldZ: number,
   rotation: RackRotation,
   excludeId?: string,
+  opts?: { snap?: boolean },
 ): GhostState | null {
   const { layout } = useWarehouseStore.getState()
   const t = layout.templates[templateId]
   if (!t) return null
   const { w, d } = getFootprint(t, rotation)
-  const gridX = clampGridCenter(worldX, w, layout.floor.widthM, layout.floor.cellSize)
-  const gridZ = clampGridCenter(worldZ, d, layout.floor.depthM, layout.floor.cellSize)
+  const cell = layout.floor.cellSize
+
+  if (opts?.snap !== false) {
+    const join = findJoinSnap(
+      layout,
+      templateId,
+      rotation,
+      worldX,
+      worldZ,
+      excludeId ? new Set([excludeId]) : undefined,
+    )
+    if (join) {
+      const gridX = clampGridFree(join.worldX, w, layout.floor.widthM, cell)
+      const gridZ = clampGridFree(join.worldZ, d, layout.floor.depthM, cell)
+      // Discard the join if the floor clamp had to move it — a clamped join is no join.
+      const kept =
+        Math.abs(gridX * cell - join.worldX) <= JOIN_TOL &&
+        Math.abs(gridZ * cell - join.worldZ) <= JOIN_TOL
+      if (kept) {
+        const valid = isPlacementValid(layout, templateId, gridX, gridZ, rotation, excludeId)
+        return { gridX, gridZ, rotation, valid, join: { markerAlong: join.markerAlong, markerCross: join.markerCross, axis: join.axis } }
+      }
+    }
+  }
+
+  const gridX = clampGridCenter(worldX, w, layout.floor.widthM, cell)
+  const gridZ = clampGridCenter(worldZ, d, layout.floor.depthM, cell)
   const valid = isPlacementValid(layout, templateId, gridX, gridZ, rotation, excludeId)
   return { gridX, gridZ, rotation, valid }
 }

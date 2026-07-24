@@ -182,13 +182,21 @@ export function buildPlan(items: StockItem[], layout: WarehouseLayout): AutoBuil
   for (const row of rows) {
     const rowDepthCells = Math.max(...row.map((n) => footprintOf(n).d)) / cell
     const gridZ = Math.ceil(edgeZCells + minAisleCells + rowDepthCells / 2)
-    const rowWidthCells = row.reduce((sum, n) => sum + footprintOf(n).w / cell, 0)
-    let edgeXCells = -rowWidthCells / 2
+    // Racks in a row form ONE continuous run sharing upright frames, so the cursor
+    // walks structural spans (bays x bayWidth) rather than full footprints, and the
+    // run is one upright wider than the sum of its spans.
+    const structCells = (n: RackNeed) => {
+      const { tpl } = footprintOf(n)
+      return (tpl.bays * tpl.bayWidth) / cell
+    }
+    const rowSpanCells = row.reduce((sum, n) => sum + structCells(n), 0)
+    const uprightCells = footprintOf(row[0]).tpl.uprightSize / cell
+    // Anchor only the start of the row on the grid; centres inside stay fractional so
+    // consecutive spans meet exactly and the shared uprights coincide.
+    let spanCells = Math.round(-rowSpanCells / 2)
     for (const need of row) {
-      const wCells = footprintOf(need).w / cell
-      // ceil snaps the center to the grid with a sub-cell gap (< flue tolerance)
-      // to the previous rack, so racks in a line sit shelf-to-shelf.
-      const gridX = Math.ceil(edgeXCells + wCells / 2)
+      const wCells = structCells(need)
+      const gridX = spanCells + wCells / 2
       newRacks.push({
         templateId: ensureTemplate(need.bays, need.levels),
         code: need.code,
@@ -198,8 +206,8 @@ export function buildPlan(items: StockItem[], layout: WarehouseLayout): AutoBuil
         rotation: 0,
         slotOverrides: {},
       })
-      edgeXCells = gridX + wCells / 2
-      maxRight = Math.max(maxRight, edgeXCells * cell)
+      spanCells += wCells
+      maxRight = Math.max(maxRight, (spanCells + uprightCells / 2) * cell)
     }
     edgeZCells = gridZ + rowDepthCells / 2
     maxZ = Math.max(maxZ, edgeZCells * cell)

@@ -1,5 +1,6 @@
-import type { AABB, AisleViolation, RackRotation, WarehouseLayout } from '../types'
+import type { AABB, AisleViolation, RackRotation, RackTemplate, WarehouseLayout } from '../types'
 import { aabbFor } from './rackGeometry'
+import { JOIN_TOL, runAxis, runCoords, structuralWidth } from './runs'
 
 const EPS = 1e-3
 
@@ -67,6 +68,55 @@ export function wallAABBs(layout: WarehouseLayout): AABB[] {
 export interface RackEntry {
   id: string
   aabb: AABB
+  /** Pose data needed to tell a shared-frame join from a real clash. */
+  pose: JoinPose
+}
+
+/** Everything needed to decide whether two overlapping racks are simply joined. */
+export interface JoinPose {
+  templateId: string
+  rotation: RackRotation
+  axis: 'x' | 'z'
+  /** Structural span along the run axis (upright centre to upright centre). */
+  min: number
+  max: number
+  /** Centre on the other axis. */
+  cross: number
+}
+
+export function poseFor(
+  gridX: number,
+  gridZ: number,
+  rotation: RackRotation,
+  t: RackTemplate,
+  templateId: string,
+  cellSize: number,
+): JoinPose {
+  const { along, cross } = runCoords(gridX, gridZ, rotation, cellSize)
+  const half = structuralWidth(t) / 2
+  return { templateId, rotation, axis: runAxis(rotation), min: along - half, max: along + half, cross }
+}
+
+/**
+ * True when two overlapping racks are actually a legal shared-frame join: same
+ * template, compatible facing, collinear, and their structural spans meeting exactly.
+ * At that spacing the end uprights coincide and the footprints overlap by precisely
+ * one upright thickness — which `overlaps` would otherwise report as a clash.
+ */
+export function isJoinedPair(a: JoinPose, b: JoinPose): boolean {
+  if (a.templateId !== b.templateId) return false
+  if (a.rotation % 180 !== b.rotation % 180) return false
+  if (a.axis !== b.axis) return false
+  if (Math.abs(a.cross - b.cross) > JOIN_TOL) return false
+  return Math.abs(a.max - b.min) <= JOIN_TOL || Math.abs(b.max - a.min) <= JOIN_TOL
+}
+
+/** Rack-vs-rack blocking test: an overlap only counts when it is not a shared-frame join. */
+export function blocks(
+  a: { aabb: AABB; pose: JoinPose },
+  b: { aabb: AABB; pose: JoinPose },
+): boolean {
+  return overlaps(a.aabb, b.aabb) && !isJoinedPair(a.pose, b.pose)
 }
 
 /**
@@ -82,10 +132,15 @@ export function rackIndex(layout: WarehouseLayout): RackEntry[] {
   const hit = rackIndexCache.get(layout)
   if (hit) return hit
   const out: RackEntry[] = []
+  const cell = layout.floor.cellSize
   for (const r of Object.values(layout.racks)) {
     const t = layout.templates[r.templateId]
     if (!t) continue
-    out.push({ id: r.id, aabb: aabbFor(r.gridX, r.gridZ, r.rotation, t, layout.floor.cellSize) })
+    out.push({
+      id: r.id,
+      aabb: aabbFor(r.gridX, r.gridZ, r.rotation, t, cell),
+      pose: poseFor(r.gridX, r.gridZ, r.rotation, t, r.templateId, cell),
+    })
   }
   rackIndexCache.set(layout, out)
   return out
@@ -132,7 +187,7 @@ export function validateGroupPlacement(layout: WarehouseLayout, moves: RackMove[
   const movingIds = new Set(moves.map((m) => m.rackId))
   const statics = rackIndex(layout).filter((e) => !movingIds.has(e.id))
 
-  const placed: { id: string; aabb: AABB }[] = []
+  const placed: { id: string; aabb: AABB; pose: JoinPose }[] = []
   for (const m of moves) {
     const rack = layout.racks[m.rackId]
     const templateId = m.templateId ?? rack?.templateId
@@ -142,11 +197,14 @@ export function validateGroupPlacement(layout: WarehouseLayout, moves: RackMove[
       continue
     }
     const rotation = m.rotation ?? rack?.rotation ?? 0
-    const aabb = aabbFor(m.gridX, m.gridZ, rotation, t, layout.floor.cellSize)
+    const cell = layout.floor.cellSize
+    const aabb = aabbFor(m.gridX, m.gridZ, rotation, t, cell)
+    const pose = poseFor(m.gridX, m.gridZ, rotation, t, templateId, cell)
+    const candidate = { aabb, pose }
     let ok = withinFloor(aabb, layout)
     if (ok) {
       for (const s of statics) {
-        if (overlaps(aabb, s.aabb)) {
+        if (blocks(candidate, s)) {
           ok = false
           break
         }
@@ -154,7 +212,7 @@ export function validateGroupPlacement(layout: WarehouseLayout, moves: RackMove[
     }
     if (ok) {
       for (const p of placed) {
-        if (overlaps(aabb, p.aabb)) {
+        if (blocks(candidate, p)) {
           ok = false
           invalidIds.add(p.id)
           break
@@ -162,7 +220,7 @@ export function validateGroupPlacement(layout: WarehouseLayout, moves: RackMove[
       }
     }
     if (!ok) invalidIds.add(m.rackId)
-    placed.push({ id: m.rackId, aabb })
+    placed.push({ id: m.rackId, aabb, pose })
   }
   return { valid: invalidIds.size === 0, invalidIds }
 }
@@ -178,11 +236,13 @@ export function isPlacementValid(
 ): boolean {
   const t = layout.templates[templateId]
   if (!t) return false
-  const aabb = aabbFor(gridX, gridZ, rotation, t, layout.floor.cellSize)
+  const cell = layout.floor.cellSize
+  const aabb = aabbFor(gridX, gridZ, rotation, t, cell)
   if (!withinFloor(aabb, layout)) return false
+  const candidate = { aabb, pose: poseFor(gridX, gridZ, rotation, t, templateId, cell) }
   for (const other of rackIndex(layout)) {
     if (other.id === excludeId) continue
-    if (overlaps(aabb, other.aabb)) return false
+    if (blocks(candidate, other)) return false
   }
   return true
 }
@@ -251,6 +311,8 @@ export function measureToNeighbors(
   for (const o of others) {
     const g = gapBetween(candidate, o)
     if (!g || g.gap > maxRange) continue
+    // A joined neighbour touches by design — don't draw it as a 0.00 m aisle.
+    if (g.gap <= JOIN_TOL) continue
     if (zoneBlocked(g.zone, allBlockers, candidate, o)) continue
     const ok = g.gap >= minAisle || g.gap <= FLUE_GAP_M
     if (g.axis === 'x') {
