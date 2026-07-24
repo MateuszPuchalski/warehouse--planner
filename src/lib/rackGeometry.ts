@@ -5,9 +5,18 @@ import type {
   RackTemplate,
   ResolvedSlot,
   SlotKey,
+  SlotRole,
   SlotStatus,
   StockItem,
 } from '../types'
+
+/** A level at least this tall (m) defaults to a pallet position; shorter defaults to picking. */
+export const PALLET_ROLE_MIN_HEIGHT = 0.8
+
+/** Default operational role for a level, inferred from its height. */
+export function deriveLevelRole(heightM: number): SlotRole {
+  return heightM >= PALLET_ROLE_MIN_HEIGHT ? 'pallet' : 'pick'
+}
 
 export function slotKey(bay: number, level: number): SlotKey {
   return `${bay}:${level}`
@@ -22,6 +31,17 @@ export function parseSlotKey(key: SlotKey): { bay: number; level: number } {
 export function getLevelHeights(t: RackTemplate): number[] {
   if (t.levelHeights && t.levelHeights.length === t.levels) return t.levelHeights
   return Array.from({ length: t.levels }, () => t.levelHeight)
+}
+
+/** Per-level roles bottom → top: explicit `levelRoles` when valid, else inferred from each height. */
+export function getLevelRoles(t: RackTemplate): SlotRole[] {
+  if (t.levelRoles && t.levelRoles.length === t.levels) return t.levelRoles
+  return getLevelHeights(t).map(deriveLevelRole)
+}
+
+/** Operational role of one level (pallet position vs picking face). */
+export function roleAtLevel(t: RackTemplate, level: number): SlotRole {
+  return getLevelRoles(t)[level] ?? 'pick'
 }
 
 /** Cumulative level bottoms; length levels + 1, last entry = total shelf height. */
@@ -168,6 +188,7 @@ export function resolveSlot(
     currentVolumeM3,
     volumeUtilization,
     status,
+    role: roleAtLevel(t, level),
     hasOverride: o !== undefined,
   }
 }

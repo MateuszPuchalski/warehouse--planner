@@ -1,16 +1,16 @@
 import { useState } from 'react'
-import type { RackTemplate } from '../types'
+import type { RackTemplate, SlotRole } from '../types'
 import { useWarehouseStore } from '../store/useWarehouseStore'
 import { useEditorStore } from '../store/useEditorStore'
 import { newId } from '../lib/ids'
+import { deriveLevelRole } from '../lib/rackGeometry'
+import { ROLE_COLORS } from '../lib/colorModes'
 import { saveTemplateToLibrary } from '../lib/persistence'
 import { t as tNow, useT } from '../lib/i18n'
 
 /** Quick-fill heights (m) for the two common shelf archetypes. */
 const PALLET_H = 1.5
 const NARROW_H = 0.4
-/** A level at least this tall reads as a pallet bay in the preview. */
-const PALLET_THRESHOLD = 1.2
 
 function clampInt(v: number, min: number, max: number): number {
   return Math.round(Math.min(max, Math.max(min, v)))
@@ -20,11 +20,15 @@ function clampNum(v: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, v))
 }
 
-/** Grow/shrink a heights array to length n, padding new entries with `fill`. */
-function resizeHeights(heights: number[], n: number, fill: number): number[] {
-  if (n === heights.length) return heights
-  if (n < heights.length) return heights.slice(0, n)
-  return [...heights, ...Array.from({ length: n - heights.length }, () => fill)]
+/** Grow/shrink an array to length n, padding new entries with `fill`. */
+function resizeTo<T>(arr: T[], n: number, fill: T): T[] {
+  if (n === arr.length) return arr
+  if (n < arr.length) return arr.slice(0, n)
+  return [...arr, ...Array.from({ length: n - arr.length }, () => fill)]
+}
+
+function arraysEqual<T>(a: T[], b: T[]): boolean {
+  return a.length === b.length && a.every((v, i) => v === b[i])
 }
 
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
@@ -38,18 +42,20 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
 
 /**
  * Scale-to-fit SVG front elevation of the rack being built. Bays run left→right,
- * levels bottom→top with their real proportional heights, so variable-height
- * layouts (e.g. tall pallet bays over narrow shelves) are visible at a glance.
+ * levels bottom→top with their real proportional heights, tinted by operational
+ * role (pallet position vs picking face) so mixed racks are visible at a glance.
  */
 function RackPreview({
   bays,
   bayWidth,
   heights,
+  roles,
   uprightSize,
 }: {
   bays: number
   bayWidth: number
   heights: number[]
+  roles: SlotRole[]
   uprightSize: number
 }) {
   const t = useT()
@@ -82,7 +88,7 @@ function RackPreview({
       {heights.map((h, l) => {
         const levelH = h * scale
         const yTop = y0 + (totalH - offsets[l + 1]) * scale
-        const pallet = h >= PALLET_THRESHOLD
+        const color = ROLE_COLORS[roles[l] ?? 'pick']
         return (
           <g key={l}>
             {/* height / level label in the gutter */}
@@ -97,8 +103,10 @@ function RackPreview({
                 width={Math.max(1, bayWidth * scale - 2)}
                 height={Math.max(1, levelH - 2)}
                 rx={1.5}
-                fill={pallet ? 'rgba(76,154,255,0.16)' : '#1e222a'}
-                stroke={pallet ? 'rgba(76,154,255,0.45)' : '#2a2f3a'}
+                fill={color}
+                fillOpacity={0.18}
+                stroke={color}
+                strokeOpacity={0.5}
                 strokeWidth={1}
               />
             ))}
@@ -112,6 +120,16 @@ function RackPreview({
       {/* floor line */}
       <rect x={x0 - 2} y={y0 + bodyH} width={bodyW + 4} height={2.5} fill={steel} rx={1} />
     </svg>
+  )
+}
+
+/** Small colored legend swatch + label for a role. */
+function RoleSwatch({ role, label }: { role: SlotRole; label: string }) {
+  return (
+    <span className="flex items-center gap-1">
+      <span className="inline-block h-2.5 w-2.5 rounded-sm" style={{ background: ROLE_COLORS[role] }} />
+      {label}
+    </span>
   )
 }
 
@@ -145,8 +163,13 @@ export function TemplateEditor() {
 
   // Per-level heights are held separately and only committed when the toggle is on.
   const [variable, setVariable] = useState(() => !!existing?.levelHeights)
-  const [heights, setHeights] = useState<number[]>(
-    () => existing?.levelHeights ?? Array.from({ length: draft.levels }, () => draft.levelHeight),
+  const initialHeights = existing?.levelHeights ?? Array.from({ length: draft.levels }, () => draft.levelHeight)
+  const [heights, setHeights] = useState<number[]>(() => initialHeights)
+  // Per-level role, defaulted from height and overridable. Kept length-synced with the level count.
+  const [roles, setRoles] = useState<SlotRole[]>(() =>
+    existing?.levelRoles && existing.levelRoles.length === draft.levels
+      ? existing.levelRoles
+      : initialHeights.map(deriveLevelRole),
   )
 
   if (editingId === null) return null
@@ -157,20 +180,50 @@ export function TemplateEditor() {
   const effectiveLevels = variable ? heights.length : draft.levels
   const previewHeights = variable ? heights : Array.from({ length: draft.levels }, () => draft.levelHeight)
   const totalHeight = previewHeights.reduce((a, b) => a + b, 0)
+  const uniformRole: SlotRole = roles[0] ?? 'pick'
 
   const setLevelCount = (n: number) => {
     const count = clampInt(n, 1, 20)
     patch({ levels: count })
-    if (variable) setHeights((h) => resizeHeights(h, count, h[h.length - 1] ?? draft.levelHeight))
+    const fillH = variable ? (heights[heights.length - 1] ?? draft.levelHeight) : draft.levelHeight
+    if (variable) setHeights((h) => resizeTo(h, count, fillH))
+    setRoles((r) => resizeTo(r, count, deriveLevelRole(fillH)))
   }
 
   const toggleVariable = (on: boolean) => {
-    if (on) setHeights(resizeHeights(heights, draft.levels, draft.levelHeight))
+    if (on) {
+      setHeights(resizeTo(heights, draft.levels, draft.levelHeight))
+      setRoles(resizeTo(roles, draft.levels, deriveLevelRole(draft.levelHeight)))
+    }
     setVariable(on)
   }
 
-  const setHeightAt = (i: number, v: number) =>
-    setHeights((h) => h.map((prev, idx) => (idx === i ? clampNum(v, 0.1, 4) : prev)))
+  // Changing a level's height re-derives its role unless the user overrode it.
+  const setHeightAt = (i: number, v: number) => {
+    const nv = clampNum(v, 0.1, 4)
+    setRoles((r) => r.map((role, idx) => (idx === i && role === deriveLevelRole(heights[i]) ? deriveLevelRole(nv) : role)))
+    setHeights((h) => h.map((prev, idx) => (idx === i ? nv : prev)))
+  }
+
+  const setUniformHeight = (v: number) => {
+    const nv = clampNum(v, 0.1, 4)
+    const old = draft.levelHeight
+    setRoles((r) => (r.every((role) => role === deriveLevelRole(old)) ? r.map(() => deriveLevelRole(nv)) : r))
+    patch({ levelHeight: nv })
+  }
+
+  const setRoleAt = (i: number, role: SlotRole) => setRoles((r) => r.map((x, idx) => (idx === i ? role : x)))
+  const setUniformRole = (role: SlotRole) => setRoles((r) => r.map(() => role))
+
+  /** Assemble the template, storing levelRoles only when it diverges from the height default. */
+  const commit = (): RackTemplate => {
+    const levels = variable ? heights.length : draft.levels
+    const levelHeights = variable ? [...heights] : undefined
+    const effRoles = roles.slice(0, levels)
+    const derived = previewHeights.map(deriveLevelRole)
+    const levelRoles = arraysEqual(effRoles, derived) ? undefined : effRoles
+    return { ...draft, name: draft.name.trim(), levels, levelHeights, levelRoles }
+  }
 
   const save = () => {
     if (!draft.name.trim()) {
@@ -181,12 +234,7 @@ export function TemplateEditor() {
       showToast(t('toast.levelHeightsBad'), 'error')
       return
     }
-    upsertTemplate({
-      ...draft,
-      name: draft.name.trim(),
-      levels: variable ? heights.length : draft.levels,
-      levelHeights: variable ? [...heights] : undefined,
-    })
+    upsertTemplate(commit())
     openTemplateEditor(null)
     showToast(existing ? t('toast.templateUpdated') : t('toast.templateCreated'))
   }
@@ -219,7 +267,11 @@ export function TemplateEditor() {
           <div className="flex flex-col rounded-md border border-border bg-panel2 p-2">
             <div className="panel-title mb-1">{t('tpl.preview')}</div>
             <div className="flex flex-1 items-center justify-center overflow-auto">
-              <RackPreview bays={draft.bays} bayWidth={draft.bayWidth} heights={previewHeights} uprightSize={draft.uprightSize} />
+              <RackPreview bays={draft.bays} bayWidth={draft.bayWidth} heights={previewHeights} roles={roles} uprightSize={draft.uprightSize} />
+            </div>
+            <div className="mt-1 flex items-center justify-center gap-3 text-[10px] text-muted">
+              <RoleSwatch role="pallet" label={t('tpl.role.pallet')} />
+              <RoleSwatch role="pick" label={t('tpl.role.pick')} />
             </div>
             <div className="mt-1 text-center text-[11px] text-muted">
               {t('tpl.slots', { n: draft.bays * effectiveLevels })} · {t('tpl.totalHeight')} {totalHeight.toFixed(2)} m
@@ -250,28 +302,48 @@ export function TemplateEditor() {
             </label>
 
             {!variable ? (
-              <Row label={t('tpl.levelHeight')}>
-                <input type="number" className="field w-20 text-right" value={draft.levelHeight} min={0.1} max={4} step={0.1}
-                  onChange={(e) => patch({ levelHeight: clampNum(Number(e.target.value) || 0.1, 0.1, 4) })} />
-              </Row>
+              <>
+                <Row label={t('tpl.levelHeight')}>
+                  <input type="number" className="field w-20 text-right" value={draft.levelHeight} min={0.1} max={4} step={0.1}
+                    onChange={(e) => setUniformHeight(Number(e.target.value) || 0.1)} />
+                </Row>
+                <Row label={t('tpl.function')}>
+                  <div className="flex gap-1">
+                    <button className={`btn !py-0.5 ${uniformRole === 'pallet' ? 'btn-accent' : ''}`} onClick={() => setUniformRole('pallet')}>
+                      {t('tpl.role.pallet')}
+                    </button>
+                    <button className={`btn !py-0.5 ${uniformRole === 'pick' ? 'btn-accent' : ''}`} onClick={() => setUniformRole('pick')}>
+                      {t('tpl.role.pick')}
+                    </button>
+                  </div>
+                </Row>
+              </>
             ) : (
               <div className="flex flex-col gap-1 rounded-md border border-border bg-bg/40 p-2">
                 <div className="mb-0.5 text-[11px] text-muted">{t('tpl.variableHeightsHint')}</div>
                 {/* Top level first, to match the physical layout. */}
                 {heights.map((_, l) => l).reverse().map((l) => (
-                  <div key={l} className="flex items-center gap-2 text-xs">
-                    <span className="w-6 text-muted">{t('tpl.levelTag', { n: l + 1 })}</span>
+                  <div key={l} className="flex items-center gap-1.5 text-xs">
+                    <span className="w-5 text-muted">{t('tpl.levelTag', { n: l + 1 })}</span>
                     <input
                       type="number"
-                      className="field w-20 text-right"
+                      className="field w-16 text-right"
                       value={heights[l]}
                       min={0.1}
                       max={4}
                       step={0.05}
                       onChange={(e) => setHeightAt(l, Number(e.target.value) || 0.1)}
                     />
-                    <button className="btn !py-0.5" onClick={() => setHeightAt(l, PALLET_H)}>{t('tpl.presetPallet')}</button>
-                    <button className="btn !py-0.5" onClick={() => setHeightAt(l, NARROW_H)}>{t('tpl.presetNarrow')}</button>
+                    <button className="btn !px-1.5 !py-0.5" title={`${PALLET_H} m`} onClick={() => setHeightAt(l, PALLET_H)}>{t('tpl.presetPallet')}</button>
+                    <button className="btn !px-1.5 !py-0.5" title={`${NARROW_H} m`} onClick={() => setHeightAt(l, NARROW_H)}>{t('tpl.presetNarrow')}</button>
+                    <button
+                      className="ml-auto flex items-center gap-1 rounded-sm border border-border px-1.5 py-0.5 text-[11px] transition-colors hover:bg-border/60"
+                      title={t('tpl.function')}
+                      onClick={() => setRoleAt(l, roles[l] === 'pallet' ? 'pick' : 'pallet')}
+                    >
+                      <span className="inline-block h-2.5 w-2.5 rounded-sm" style={{ background: ROLE_COLORS[roles[l] ?? 'pick'] }} />
+                      {roles[l] === 'pallet' ? t('tpl.role.pallet') : t('tpl.role.pick')}
+                    </button>
                   </div>
                 ))}
               </div>
@@ -314,12 +386,9 @@ export function TemplateEditor() {
           <button
             className="btn"
             onClick={() => {
-              saveTemplateToLibrary({
-                ...draft,
-                levels: variable ? heights.length : draft.levels,
-                levelHeights: variable ? [...heights] : undefined,
-              })
-              showToast(t('toast.savedToLibrary', { name: draft.name }))
+              const tpl = commit()
+              saveTemplateToLibrary(tpl)
+              showToast(t('toast.savedToLibrary', { name: tpl.name }))
             }}
           >
             {t('tpl.saveLib')}

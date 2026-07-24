@@ -1,4 +1,4 @@
-import type { CarrierKind, RackInstance, RackTemplate, SlotKey, StockItem, WarehouseLayout } from '../types'
+import type { CarrierKind, RackInstance, RackTemplate, SlotKey, SlotRole, StockItem, WarehouseLayout } from '../types'
 import type { StockIndex } from '../store/useStockStore'
 import { allSlots, countOverVolume, effectiveVolume, rackStats } from './rackGeometry'
 import { carrierKind } from './loadProxy'
@@ -23,6 +23,8 @@ export interface WarehouseKpis {
   overVolumeSlots: number
   aisleViolations: number
   byCarrier: Record<CarrierKind, CarrierStat>
+  /** Slot counts split by operational function (pallet positions vs picking faces). */
+  byRole: Record<SlotRole, CarrierStat>
   stock: {
     skuCount: number
     totalQuantity: number
@@ -33,12 +35,20 @@ export interface WarehouseKpis {
 }
 
 const CARRIERS: CarrierKind[] = ['pallet', 'carton', 'bin']
+const ROLES: SlotRole[] = ['pallet', 'pick']
 
 function emptyCarrierStats(): Record<CarrierKind, CarrierStat> {
   return {
     pallet: { total: 0, occupied: 0, free: 0 },
     carton: { total: 0, occupied: 0, free: 0 },
     bin: { total: 0, occupied: 0, free: 0 },
+  }
+}
+
+function emptyRoleStats(): Record<SlotRole, CarrierStat> {
+  return {
+    pallet: { total: 0, occupied: 0, free: 0 },
+    pick: { total: 0, occupied: 0, free: 0 },
   }
 }
 
@@ -56,6 +66,8 @@ export interface RackKpi {
   volumeUtilPct: number
   overVolumeSlots: number
   overweightSlots: number
+  /** Slot counts split by operational function (pallet positions vs picking faces). */
+  byRole: Record<SlotRole, { total: number; occupied: number }>
 }
 
 /**
@@ -72,10 +84,14 @@ function rackKpi(
   let occupiedSlots = 0
   let volumeCapacityM3 = 0
   let volumeUsedM3 = 0
+  const byRole = { pallet: { total: 0, occupied: 0 }, pick: { total: 0, occupied: 0 } }
   for (const s of allSlots(tpl, rack)) {
     slotCount++
     const vol = effectiveVolume(s, stock?.[s.key])
-    if (s.currentWeightKg > 0 || vol.currentM3 > 0) occupiedSlots++
+    const occupied = s.currentWeightKg > 0 || vol.currentM3 > 0
+    if (occupied) occupiedSlots++
+    byRole[s.role].total++
+    if (occupied) byRole[s.role].occupied++
     volumeCapacityM3 += s.maxVolumeM3
     volumeUsedM3 += vol.currentM3
   }
@@ -92,6 +108,7 @@ function rackKpi(
     volumeUtilPct: volumeCapacityM3 > 0 ? volumeUsedM3 / volumeCapacityM3 : 0,
     overVolumeSlots: countOverVolume(tpl, rack, stock),
     overweightSlots: rackStats(tpl, rack).overweight,
+    byRole,
   }
 }
 
@@ -120,6 +137,7 @@ export function computeKpis(
   let overweightSlots = 0
   let overVolumeSlots = 0
   const byCarrier = emptyCarrierStats()
+  const byRole = emptyRoleStats()
 
   for (const rack of Object.values(layout.racks)) {
     const tpl = layout.templates[rack.templateId]
@@ -134,9 +152,14 @@ export function computeKpis(
     overVolumeSlots += r.overVolumeSlots
     byCarrier[r.carrier].total += r.slotCount
     byCarrier[r.carrier].occupied += r.occupiedSlots
+    for (const role of ROLES) {
+      byRole[role].total += r.byRole[role].total
+      byRole[role].occupied += r.byRole[role].occupied
+    }
   }
 
   for (const c of CARRIERS) byCarrier[c].free = byCarrier[c].total - byCarrier[c].occupied
+  for (const role of ROLES) byRole[role].free = byRole[role].total - byRole[role].occupied
 
   const skuSet = new Set<string>()
   let totalQuantity = 0
@@ -164,6 +187,7 @@ export function computeKpis(
     overVolumeSlots,
     aisleViolations: validateAisles(layout).length,
     byCarrier,
+    byRole,
     stock: {
       skuCount: skuSet.size,
       totalQuantity,

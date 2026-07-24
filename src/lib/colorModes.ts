@@ -1,4 +1,4 @@
-import type { ColorMode, ResolvedSlot, SlotStatus } from '../types'
+import type { ColorMode, ResolvedSlot, SlotRole, SlotStatus } from '../types'
 
 export const STATUS_COLORS: Record<SlotStatus, string> = {
   empty: '#4b5563',
@@ -17,6 +17,12 @@ export function utilizationColor(utilization: number): string {
 
 /** Slot fill by Subiekt stock: occupied blue, deeper when several SKUs share it. */
 export const STOCK_COLORS = { one: '#38bdf8', multi: '#0369a1' }
+
+/** Slot fill by operational function: pallet positions blue, picking faces amber. */
+export const ROLE_COLORS: Record<SlotRole, string> = {
+  pallet: '#4c9aff',
+  pick: '#f5a623',
+}
 
 export function slotColor(
   slot: ResolvedSlot,
@@ -40,6 +46,9 @@ export function slotColor(
     if (stockCount > 1) return STOCK_COLORS.multi
     if (stockCount === 1) return STOCK_COLORS.one
     return STATUS_COLORS.empty
+  }
+  if (mode === 'function') {
+    return ROLE_COLORS[slot.role]
   }
   return STATUS_COLORS[slot.status]
 }

@@ -90,6 +90,7 @@ export function TopBar() {
             <option value="utilization">{t('top.color.utilization')}</option>
             <option value="volume">{t('top.color.volume')}</option>
             <option value="stock">{t('top.color.stock')}</option>
+            <option value="function">{t('top.color.function')}</option>
             <option value="none">{t('top.color.none')}</option>
           </select>
         </label>
