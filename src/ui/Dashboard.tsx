@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
-import type { CarrierKind } from '../types'
+import type { CarrierKind, SlotRole } from '../types'
+import { ROLE_COLORS } from '../lib/colorModes'
 import { useWarehouseStore } from '../store/useWarehouseStore'
 import { useEditorStore } from '../store/useEditorStore'
 import { useStockStore } from '../store/useStockStore'
@@ -7,6 +8,7 @@ import { computeKpis } from '../lib/kpi'
 import { useT, type TranslationKey } from '../lib/i18n'
 
 const CARRIERS: CarrierKind[] = ['pallet', 'carton', 'bin']
+const ROLES: SlotRole[] = ['pallet', 'pick']
 
 /** Color for a fill meter: green under 80%, amber to 100%, red over capacity. */
 function meterColor(util: number): string {
@@ -76,6 +78,25 @@ export function Dashboard() {
           <div className="mt-4 flex flex-col gap-2.5">
             <Meter label={t('kpi.fill')} util={k.fillPct} right={t('kpi.slotsSub', { occ: k.occupiedSlots, total: k.slotCount })} />
             <Meter label={t('kpi.volume')} util={k.volumeUtilPct} right={`${k.volumeUsedM3.toFixed(1)} / ${k.volumeCapacityM3.toFixed(1)} m³`} />
+          </div>
+
+          <div className="mt-4">
+            <div className="panel-title mb-1.5">{t('kpi.byRole')}</div>
+            <div className="grid grid-cols-2 gap-2">
+              {ROLES.map((r) => {
+                const s = k.byRole[r]
+                return (
+                  <div key={r} className="rounded-md border border-border bg-panel2 p-2.5">
+                    <div className="flex items-center gap-1.5">
+                      <span className="inline-block h-2.5 w-2.5 rounded-sm" style={{ background: ROLE_COLORS[r] }} />
+                      <span className="panel-title">{t(`role.${r}` as TranslationKey)}</span>
+                    </div>
+                    <div className="mt-1 text-xl font-semibold">{s.free}</div>
+                    <div className="text-[11px] text-muted">{t('kpi.freeOfTotal', { free: s.free, total: s.total })}</div>
+                  </div>
+                )
+              })}
+            </div>
           </div>
 
           <div className="mt-4">

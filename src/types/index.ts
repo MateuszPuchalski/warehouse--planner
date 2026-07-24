@@ -7,7 +7,10 @@ export type SlotStatus = 'empty' | 'ok' | 'warning' | 'overweight' | 'blocked'
 
 export type EditorMode = 'select' | 'place' | 'delete' | 'wall' | 'zone'
 
-export type ColorMode = 'status' | 'utilization' | 'stock' | 'volume' | 'none'
+export type ColorMode = 'status' | 'utilization' | 'stock' | 'volume' | 'function' | 'none'
+
+/** Operational function of a slot: bulk pallet position (reserve) vs picking face (kompletacja). */
+export type SlotRole = 'pallet' | 'pick'
 
 export interface SlotDefaults {
   maxWeightKg: number
@@ -34,6 +37,12 @@ export interface RackTemplate {
    * length equals `levels`, it overrides the uniform `levelHeight`.
    */
   levelHeights?: number[]
+  /**
+   * Optional per-level function, bottom → top: 'pallet' (bulk/reserve position)
+   * or 'pick' (picking face). When present and its length equals `levels`, it
+   * overrides the height-based default. Omitted = inferred from each level height.
+   */
+  levelRoles?: SlotRole[]
   /** Rack depth in meters. */
   depth: number
   /** Visual thickness of upright posts in meters. */
@@ -86,6 +95,8 @@ export interface ResolvedSlot {
   /** Manual-volume utilization (currentVolumeM3 / maxVolumeM3). */
   volumeUtilization: number
   status: SlotStatus
+  /** Operational function of the slot (pallet position vs picking face). */
+  role: SlotRole
   hasOverride: boolean
 }
 
