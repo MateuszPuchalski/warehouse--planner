@@ -28,7 +28,14 @@ export function Floor() {
   const onPointerMove = (e: ThreeEvent<PointerEvent>) => {
     editor().setPointer({ x: e.point.x, z: e.point.z })
     if (mode === 'place' && placingTemplateId && !editor().movingRackId) {
-      const ghost = computeGhost(placingTemplateId, e.point.x, e.point.z, editor().placeRotation)
+      const ghost = computeGhost(
+        placingTemplateId,
+        e.point.x,
+        e.point.z,
+        editor().placeRotation,
+        undefined,
+        { snap: !(e.ctrlKey || e.metaKey) },
+      )
       editor().setGhost(ghost)
     }
   }

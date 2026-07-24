@@ -611,11 +611,13 @@ function ArraySection({ seedTemplateId }: { seedTemplateId?: string }) {
     const tpl = seedTemplateId
       ? useWarehouseStore.getState().layout.templates[seedTemplateId]
       : undefined
+    // Default to joined spacing (structural span, no upright) so a run of copies shares
+    // its frames instead of standing as separate racks with doubled posts.
     const next = tpl
       ? {
           ...spec,
-          spacingXCells: Math.max(1, Math.ceil((tpl.bays * tpl.bayWidth + tpl.uprightSize) / cellSize)),
-          spacingZCells: Math.max(1, Math.ceil(tpl.depth / cellSize)),
+          spacingXCells: (tpl.bays * tpl.bayWidth) / cellSize,
+          spacingZCells: tpl.depth / cellSize,
         }
       : spec
     setSpec(next)
@@ -645,12 +647,13 @@ function ArraySection({ seedTemplateId }: { seedTemplateId?: string }) {
             onChange={(v) => patch({ countX: Math.round(v) })} />
           <NumField label={t('array.countZ')} value={spec.countZ} step={1} min={1} max={50}
             onChange={(v) => patch({ countZ: Math.round(v) })} />
+          {/* Fractional steps are required: joined spacing is rarely a whole number of cells. */}
           <NumField label={t('array.spacingX')} value={Number((spec.spacingXCells * cellSize).toFixed(2))}
             step={cellSize} suffix="m"
-            onChange={(v) => patch({ spacingXCells: Math.max(1, Math.round(v / cellSize)) })} />
+            onChange={(v) => patch({ spacingXCells: Math.max(0.01, v / cellSize) })} />
           <NumField label={t('array.spacingZ')} value={Number((spec.spacingZCells * cellSize).toFixed(2))}
             step={cellSize} suffix="m"
-            onChange={(v) => patch({ spacingZCells: Math.max(1, Math.round(v / cellSize)) })} />
+            onChange={(v) => patch({ spacingZCells: Math.max(0.01, v / cellSize) })} />
           <div className="flex gap-1">
             <button className="btn flex-1 justify-center"
               onClick={() => patch({ signX: (spec.signX * -1) as 1 | -1 })}>

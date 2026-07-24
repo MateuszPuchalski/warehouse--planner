@@ -7,6 +7,7 @@ import { useEditorStore } from '../store/useEditorStore'
 import { aabbFor } from '../lib/rackGeometry'
 import { measureToNeighbors, wallAABBs } from '../lib/collision'
 import { gridToWorld } from '../lib/grid'
+import { useT } from '../lib/i18n'
 import { RackFrame } from './RackFrame'
 import { ghostValidMat, ghostInvalidMat } from './materials'
 
@@ -17,6 +18,7 @@ export function GhostRack() {
   const placingTemplateId = useEditorStore((s) => s.placingTemplateId)
   const movingRackId = useEditorStore((s) => s.movingRackId)
   const layout = useWarehouseStore((s) => s.layout)
+  const t = useT()
 
   useFrame(({ clock }) => {
     const pulse = 0.34 + 0.12 * Math.sin(clock.elapsedTime * 5)
@@ -52,6 +54,45 @@ export function GhostRack() {
       >
         <RackFrame template={template} materialOverride={ghost.valid ? ghostValidMat : ghostInvalidMat} />
       </group>
+
+      {/* Shared-frame marker: a solid line across the junction, distinct from the
+          dashed aisle guides, showing exactly where the upright will be shared. */}
+      {ghost.join && (
+        <group>
+          <Line
+            points={
+              ghost.join.axis === 'x'
+                ? [
+                    [ghost.join.markerAlong, 0.08, ghost.join.markerCross - template.depth / 2],
+                    [ghost.join.markerAlong, 0.08, ghost.join.markerCross + template.depth / 2],
+                  ]
+                : [
+                    [ghost.join.markerCross - template.depth / 2, 0.08, ghost.join.markerAlong],
+                    [ghost.join.markerCross + template.depth / 2, 0.08, ghost.join.markerAlong],
+                  ]
+            }
+            color="#3ddc84"
+            lineWidth={2.5}
+          />
+          <Html
+            center
+            position={
+              ghost.join.axis === 'x'
+                ? [ghost.join.markerAlong, 0.4, ghost.join.markerCross]
+                : [ghost.join.markerCross, 0.4, ghost.join.markerAlong]
+            }
+            style={{ pointerEvents: 'none' }}
+            zIndexRange={[20, 0]}
+          >
+            <div
+              className="rounded border px-1.5 py-0.5 text-[11px] whitespace-nowrap"
+              style={{ background: 'rgba(23,26,32,0.92)', borderColor: '#3ddc84', color: '#3ddc84' }}
+            >
+              {t('join.badge')}
+            </div>
+          </Html>
+        </group>
+      )}
 
       {lines.map((l, i) => {
         const mid: [number, number, number] = [

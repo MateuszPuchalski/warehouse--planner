@@ -1,5 +1,5 @@
 import type { WarehouseLayout } from '../types'
-import { overlaps, rackIndex, validateGroupPlacement } from './collision'
+import { blocks, poseFor, rackIndex, validateGroupPlacement } from './collision'
 import { aabbFor } from './rackGeometry'
 
 export interface ArraySpec {
@@ -34,7 +34,9 @@ export function buildArraySpecs(
   if (sources.length === 0) return { specs: [], skipped: 0 }
 
   const cell = layout.floor.cellSize
-  const placed = rackIndex(layout).map((e) => e.aabb)
+  // Pose-aware, so copies laid out at joined spacing count as shared frames rather
+  // than being silently dropped as overlaps.
+  const placed = rackIndex(layout).map((e) => ({ aabb: e.aabb, pose: e.pose }))
   const specs: ArrayResult['specs'] = []
   let skipped = 0
 
@@ -49,15 +51,17 @@ export function buildArraySpecs(
         const gridX = src.gridX + dx
         const gridZ = src.gridZ + dz
         const aabb = aabbFor(gridX, gridZ, src.rotation, template, cell)
+        const pose = poseFor(gridX, gridZ, src.rotation, template, src.templateId, cell)
+        const candidate = { aabb, pose }
         const fits =
           validateGroupPlacement(layout, [
             { rackId: `${src.id}#a${ix}_${iz}`, gridX, gridZ, templateId: src.templateId, rotation: src.rotation },
-          ]).valid && !placed.some((p) => overlaps(aabb, p))
+          ]).valid && !placed.some((p) => blocks(candidate, p))
         if (!fits) {
           skipped++
           continue
         }
-        placed.push(aabb)
+        placed.push(candidate)
         specs.push({ sourceId: src.id, gridX, gridZ })
       }
     }

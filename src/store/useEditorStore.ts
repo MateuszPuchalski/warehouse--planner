@@ -184,7 +184,9 @@ export const useEditorStore = create<EditorState>()((set, get) => ({
       cur.gridX === ghost.gridX &&
       cur.gridZ === ghost.gridZ &&
       cur.rotation === ghost.rotation &&
-      cur.valid === ghost.valid
+      cur.valid === ghost.valid &&
+      cur.join?.markerAlong === ghost.join?.markerAlong &&
+      cur.join?.markerCross === ghost.join?.markerCross
     ) {
       return
     }

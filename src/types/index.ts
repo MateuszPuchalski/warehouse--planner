@@ -207,6 +207,13 @@ export interface GhostState {
   gridZ: number
   rotation: RackRotation
   valid: boolean
+  /** Present when this position shares an upright frame with a neighbour. */
+  join?: {
+    /** Junction coordinate along the run axis, for the shared-frame marker. */
+    markerAlong: number
+    markerCross: number
+    axis: 'x' | 'z'
+  }
 }
 
 /** One rack's pose inside a group move / array preview. */

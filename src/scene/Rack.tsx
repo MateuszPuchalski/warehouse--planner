@@ -7,6 +7,7 @@ import { useWarehouseStore } from '../store/useWarehouseStore'
 import { useEditorStore } from '../store/useEditorStore'
 import { getLocalSize, levelAtHeight, slotKey } from '../lib/rackGeometry'
 import { gridToWorld, worldToGrid } from '../lib/grid'
+import { uprightSkipMask } from '../lib/runs'
 import {
   commitMoveGhost,
   computeGhost,
@@ -26,6 +27,13 @@ export function Rack({ rackId }: { rackId: string }) {
     rack ? s.layout.templates[rack.templateId] : undefined,
   )
   const cellSize = useWarehouseStore((s) => s.layout.floor.cellSize)
+  // Joined neighbours share one upright frame, so each junction's downstream rack drops
+  // an end frame. Selecting a primitive bitmask keeps zustand from re-rendering every
+  // rack whenever any of them moves.
+  const skipMask = useWarehouseStore((s) => uprightSkipMask(s.layout, rackId))
+  // While anything is being dragged the moved rack is hidden, which would leave a hole
+  // with a missing post — restore every full frame for the duration of the gesture.
+  const anyDrag = useEditorStore((s) => s.movingRackId !== null || s.movingRackIds.size > 0)
 
   const mode = useEditorStore((s) => s.mode)
   const selected = useEditorStore((s) => s.selectedRackIds.has(rackId))
@@ -123,6 +131,8 @@ export function Rack({ rackId }: { rackId: string }) {
           gridToWorld(gz, cellSize),
           rotation,
           rackId,
+          // Ctrl places without joining (Alt is copy-drag, Shift is axis-lock).
+          { snap: !(ev.ctrlKey || ev.metaKey) },
         )
         if (!ghost) return
         if (!moved && ghost.gridX === startGX && ghost.gridZ === startGZ) return
@@ -183,7 +193,11 @@ export function Rack({ rackId }: { rackId: string }) {
       scale={spring.scale}
       visible={!isMoving}
     >
-      <RackFrame template={template} />
+      <RackFrame
+        template={template}
+        skipStart={!anyDrag && (skipMask & 1) !== 0}
+        skipEnd={!anyDrag && (skipMask & 2) !== 0}
+      />
       {showSlots && <SlotCells rack={rack} template={template} />}
 
       {/* Invisible pick box — the single raycast target for this rack. */}
@@ -199,7 +213,9 @@ export function Rack({ rackId }: { rackId: string }) {
         onPointerDown={onPointerDown}
         onClick={onClick}
       >
-        <boxGeometry args={[w, h, d]} />
+        {/* Sized to the structural span, not the footprint: joined racks overlap by one
+            upright thickness, and a full-width pick box would make that sliver ambiguous. */}
+        <boxGeometry args={[template.bays * template.bayWidth, h, d]} />
       </mesh>
 
       {highlight && (
