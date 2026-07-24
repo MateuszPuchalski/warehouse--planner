@@ -2,7 +2,7 @@ import { useMemo } from 'react'
 import { useWarehouseStore } from '../store/useWarehouseStore'
 import { useEditorStore } from '../store/useEditorStore'
 import { useStockStore } from '../store/useStockStore'
-import { validateAisles } from '../lib/collision'
+import { validateAislesCached } from '../lib/collision'
 import { countOverVolume } from '../lib/rackGeometry'
 import { useT, type TranslationKey } from '../lib/i18n'
 
@@ -18,7 +18,7 @@ export function StatusBar() {
   const selectRack = useEditorStore((s) => s.selectRack)
   const t = useT()
 
-  const violations = useMemo(() => validateAisles(layout), [layout])
+  const violations = useMemo(() => validateAislesCached(layout), [layout])
   const overVolume = useMemo(
     () =>
       Object.values(layout.racks).reduce((sum, r) => {

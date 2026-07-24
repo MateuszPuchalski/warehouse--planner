@@ -1,12 +1,12 @@
 import { useMemo } from 'react'
 import { Html } from '@react-three/drei'
 import { useWarehouseStore } from '../store/useWarehouseStore'
-import { validateAisles } from '../lib/collision'
+import { validateAislesCached } from '../lib/collision'
 
 /** Red overlay zones + distance badges wherever two facing racks are closer than the minimum aisle width. */
 export function AisleGuides() {
   const layout = useWarehouseStore((s) => s.layout)
-  const violations = useMemo(() => validateAisles(layout), [layout])
+  const violations = useMemo(() => validateAislesCached(layout), [layout])
 
   if (!layout.floor.showAisleGuides) return null
 

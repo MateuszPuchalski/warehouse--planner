@@ -18,3 +18,14 @@ export function clampGridCenter(world: number, span: number, floorSpan: number, 
   const g = Math.round(Math.min(half, Math.max(-half, world)) / cellSize)
   return Math.min(maxG, Math.max(minG, g))
 }
+
+/**
+ * Like `clampGridCenter` but keeps the coordinate fractional (no grid snap), so a
+ * footprint can sit flush against a neighbour whose size is not a whole number of
+ * cells. Grid coordinates are plain numbers, so fractions round-trip fine.
+ */
+export function clampGridFree(world: number, span: number, floorSpan: number, cellSize: number): number {
+  const half = (floorSpan - span) / 2
+  if (half < 0) return 0
+  return Math.min(half, Math.max(-half, world)) / cellSize
+}

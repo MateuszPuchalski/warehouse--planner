@@ -4,9 +4,12 @@ import { useEditorStore } from './store/useEditorStore'
 import {
   armPlaceDefault,
   deleteSelected,
+  duplicateSelection,
   escapeAction,
+  nudgeSelection,
   redo,
   rotateGhostOrSelection,
+  selectAllRacks,
   undo,
 } from './lib/editorActions'
 import { saveAutosave } from './lib/persistence'
@@ -24,6 +27,7 @@ import { Dashboard } from './ui/Dashboard'
 import { Insights } from './ui/Insights'
 import { HomeScreen } from './ui/HomeScreen'
 import { BridgeSync } from './ui/BridgeSync'
+import { MarqueeBox } from './ui/MarqueeBox'
 
 function Toast() {
   const toast = useEditorStore((s) => s.toast)
@@ -39,6 +43,14 @@ function Toast() {
       {toast.msg}
     </div>
   )
+}
+
+/** Arrow-key nudge deltas in grid cells. World-axis, so undo stays intelligible. */
+const NUDGE_KEYS: Record<string, [number, number]> = {
+  arrowleft: [-1, 0],
+  arrowright: [1, 0],
+  arrowup: [0, -1],
+  arrowdown: [0, 1],
 }
 
 function isTypingTarget(el: EventTarget | null): boolean {
@@ -81,6 +93,25 @@ export default function App() {
       if ((e.ctrlKey || e.metaKey) && key === 'y') {
         e.preventDefault()
         redo()
+        return
+      }
+      // Arrow nudge and the Ctrl combos must be handled before the modifier bail-out below.
+      const nudge = NUDGE_KEYS[key]
+      if (nudge) {
+        if (useEditorStore.getState().selectedRackIds.size === 0) return
+        e.preventDefault()
+        const step = e.shiftKey ? 10 : 1
+        nudgeSelection(nudge[0] * step, nudge[1] * step)
+        return
+      }
+      if ((e.ctrlKey || e.metaKey) && key === 'd') {
+        e.preventDefault()
+        duplicateSelection()
+        return
+      }
+      if ((e.ctrlKey || e.metaKey) && key === 'a') {
+        e.preventDefault()
+        selectAllRacks()
         return
       }
       if (e.ctrlKey || e.metaKey || e.altKey) return
@@ -129,6 +160,21 @@ export default function App() {
     }
   }, [])
 
+  // Selection lives outside the undo history, so undoing a create/duplicate can leave
+  // it pointing at racks that no longer exist. Prune whenever the rack map changes.
+  useEffect(() => {
+    let prev = useWarehouseStore.getState().layout.racks
+    return useWarehouseStore.subscribe((s) => {
+      const racks = s.layout.racks
+      if (racks === prev) return
+      prev = racks
+      const ed = useEditorStore.getState()
+      if (ed.selectedRackIds.size === 0) return
+      const alive = [...ed.selectedRackIds].filter((id) => racks[id])
+      if (alive.length !== ed.selectedRackIds.size) ed.setRackSelection(alive)
+    })
+  }, [])
+
   if (view === 'home') {
     return (
       <div className="h-dvh w-screen overflow-hidden bg-bg font-sans text-sm text-text">
@@ -156,6 +202,7 @@ export default function App() {
       {showDashboard && <Dashboard />}
       {showInsights && <Insights />}
       <BridgeSync />
+      <MarqueeBox />
       <Toast />
     </div>
   )
