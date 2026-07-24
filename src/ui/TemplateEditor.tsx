@@ -292,8 +292,8 @@ export function TemplateEditor() {
                 onChange={(e) => setLevelCount(Number(e.target.value) || 1)} />
             </Row>
             <Row label={t('tpl.bayWidth')}>
-              <input type="number" className="field w-20 text-right" value={draft.bayWidth} min={0.5} max={6} step={0.1}
-                onChange={(e) => patch({ bayWidth: clampNum(Number(e.target.value) || 0.5, 0.5, 6) })} />
+              <input type="number" className="field w-20 text-right" value={draft.bayWidth} min={0.1} max={6} step={0.05}
+                onChange={(e) => patch({ bayWidth: clampNum(Number(e.target.value) || 0.1, 0.1, 6) })} />
             </Row>
 
             <label className="flex items-center gap-2 text-xs">
@@ -334,8 +334,8 @@ export function TemplateEditor() {
                       step={0.05}
                       onChange={(e) => setHeightAt(l, Number(e.target.value) || 0.1)}
                     />
-                    <button className="btn !px-1.5 !py-0.5" title={`${PALLET_H} m`} onClick={() => setHeightAt(l, PALLET_H)}>{t('tpl.presetPallet')}</button>
-                    <button className="btn !px-1.5 !py-0.5" title={`${NARROW_H} m`} onClick={() => setHeightAt(l, NARROW_H)}>{t('tpl.presetNarrow')}</button>
+                    <button className="btn !px-1.5 !py-0.5" title={t('tpl.presetPallet')} onClick={() => setHeightAt(l, PALLET_H)}>{PALLET_H} m</button>
+                    <button className="btn !px-1.5 !py-0.5" title={t('tpl.presetNarrow')} onClick={() => setHeightAt(l, NARROW_H)}>{NARROW_H} m</button>
                     <button
                       className="ml-auto flex items-center gap-1 rounded-sm border border-border px-1.5 py-0.5 text-[11px] transition-colors hover:bg-border/60"
                       title={t('tpl.function')}
