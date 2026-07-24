@@ -3,6 +3,7 @@ import { OrbitControls, Stats } from '@react-three/drei'
 import { Floor } from './Floor'
 import { Racks } from './Racks'
 import { GhostRack } from './GhostRack'
+import { GroupGhost } from './GroupGhost'
 import { AisleGuides } from './AisleGuides'
 import { Walls } from './Walls'
 import { WallGhost } from './WallGhost'
@@ -50,6 +51,7 @@ export function WarehouseCanvas() {
       <Zones />
       <Racks />
       <GhostRack />
+      <GroupGhost />
       <WallGhost />
       <ZoneGhost />
 

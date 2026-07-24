@@ -1,20 +1,23 @@
 import { useRef } from 'react'
 import * as THREE from 'three'
-import { useThree, type ThreeEvent } from '@react-three/fiber'
+import { type ThreeEvent } from '@react-three/fiber'
 import { animated, useSpring } from '@react-spring/three'
 import { Edges } from '@react-three/drei'
 import { useWarehouseStore } from '../store/useWarehouseStore'
 import { useEditorStore } from '../store/useEditorStore'
 import { getLocalSize, levelAtHeight, slotKey } from '../lib/rackGeometry'
-import { gridToWorld } from '../lib/grid'
-import { computeGhost, finalizeDelete, requestDelete } from '../lib/editorActions'
+import { gridToWorld, worldToGrid } from '../lib/grid'
+import {
+  commitMoveGhost,
+  computeGhost,
+  computeGroupGhost,
+  finalizeDelete,
+  requestDelete,
+} from '../lib/editorActions'
 import { RackFrame } from './RackFrame'
 import { SlotCells } from './SlotCells'
+import { usePlaneDrag } from './usePlaneDrag'
 
-const FLOOR_PLANE = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0)
-const dragRaycaster = new THREE.Raycaster()
-const tmpNdc = new THREE.Vector2()
-const tmpHit = new THREE.Vector3()
 const tmpLocal = new THREE.Vector3()
 
 export function Rack({ rackId }: { rackId: string }) {
@@ -23,20 +26,24 @@ export function Rack({ rackId }: { rackId: string }) {
     rack ? s.layout.templates[rack.templateId] : undefined,
   )
   const cellSize = useWarehouseStore((s) => s.layout.floor.cellSize)
-  const moveRack = useWarehouseStore((s) => s.moveRack)
 
   const mode = useEditorStore((s) => s.mode)
-  const selected = useEditorStore((s) => s.selectedRackId === rackId)
+  const selected = useEditorStore((s) => s.selectedRackIds.has(rackId))
+  const isPrimary = useEditorStore((s) => s.selectedRackId === rackId)
   const hovered = useEditorStore((s) => s.hoveredRackId === rackId)
   const isDeleting = useEditorStore((s) => s.deletingRackIds.includes(rackId))
-  const isMoving = useEditorStore((s) => s.movingRackId === rackId && s.ghost !== null)
+  // Hidden while its translucent ghost stands in — but a copy-drag keeps the source visible.
+  const isMoving = useEditorStore(
+    (s) =>
+      !s.groupGhost?.copy &&
+      ((s.movingRackId === rackId && s.ghost !== null) ||
+        (s.movingRackIds.has(rackId) && s.groupGhost !== null)),
+  )
   const colorMode = useEditorStore((s) => s.colorMode)
 
   const groupRef = useRef<THREE.Group>(null)
   const draggingRef = useRef(false)
-  const camera = useThree((s) => s.camera)
-  const gl = useThree((s) => s.gl)
-  const controls = useThree((s) => s.controls) as unknown as { enabled: boolean } | null
+  const startDrag = usePlaneDrag()
 
   const spring = useSpring({
     from: { scale: 0.55 },
@@ -53,51 +60,86 @@ export function Rack({ rackId }: { rackId: string }) {
   const editor = useEditorStore.getState
 
   /**
-   * Drag-to-move via window listeners (not pointer capture): keeps tracking
-   * even when the pointer leaves the rack or the canvas mid-drag.
+   * Drag-to-move. The grab offset is captured up front so the rack keeps its position
+   * relative to the cursor instead of snapping its centre under it; Alt turns the drag
+   * into a copy, Shift constrains it to one axis, and Escape aborts (see usePlaneDrag).
    */
   const onPointerDown = (e: ThreeEvent<PointerEvent>) => {
     if (mode !== 'select' || e.button !== 0 || isDeleting || draggingRef.current) return
     e.stopPropagation()
-    editor().selectRack(rackId)
-    editor().setMovingRackId(rackId)
-    if (controls) controls.enabled = false
-    draggingRef.current = true
+    // Shift/Ctrl means "toggle this rack in the selection" — handled on click, and it must
+    // not start a drag or reset the selection here. (Axis-lock reads Shift live mid-drag.)
+    if (e.shiftKey || e.ctrlKey || e.metaKey) return
+
+    const ed = editor()
+    // Dragging an unselected rack selects it first; dragging one of several moves them all.
+    if (!ed.selectedRackIds.has(rackId)) ed.selectRack(rackId)
+    const ids = [...editor().selectedRackIds]
+    const isGroup = ids.length > 1
+    const isCopy = e.altKey
 
     const startGX = rack.gridX
     const startGZ = rack.gridZ
     const templateId = rack.templateId
     const rotation = rack.rotation
+    // Grid-space offset from the grab point to the rack centre.
+    const grabDX = startGX - worldToGrid(e.point.x, cellSize)
+    const grabDZ = startGZ - worldToGrid(e.point.z, cellSize)
     let moved = false
+    let axis: 'x' | 'z' | null = null
 
-    const onMove = (ev: PointerEvent) => {
-      const rect = gl.domElement.getBoundingClientRect()
-      tmpNdc.set(
-        ((ev.clientX - rect.left) / rect.width) * 2 - 1,
-        -((ev.clientY - rect.top) / rect.height) * 2 + 1,
-      )
-      dragRaycaster.setFromCamera(tmpNdc, camera)
-      if (!dragRaycaster.ray.intersectPlane(FLOOR_PLANE, tmpHit)) return
-      const ghost = computeGhost(templateId, tmpHit.x, tmpHit.z, rotation, rackId)
-      if (!ghost) return
-      if (!moved && ghost.gridX === startGX && ghost.gridZ === startGZ) return
-      moved = true
-      editor().setGhost(ghost)
-    }
+    if (isGroup || isCopy) editor().setMovingRackIds(ids)
+    else editor().setMovingRackId(rackId)
+    draggingRef.current = true
 
-    const onUp = () => {
-      window.removeEventListener('pointermove', onMove)
-      window.removeEventListener('pointerup', onUp)
-      draggingRef.current = false
-      if (controls) controls.enabled = true
-      const ghost = editor().ghost
-      if (moved && ghost && ghost.valid) moveRack(rackId, ghost.gridX, ghost.gridZ)
-      editor().setMovingRackId(null)
-      editor().setGhost(null)
-    }
+    startDrag({
+      onMove: (hit, ev) => {
+        let gx = worldToGrid(hit.x, cellSize) + grabDX
+        let gz = worldToGrid(hit.z, cellSize) + grabDZ
 
-    window.addEventListener('pointermove', onMove)
-    window.addEventListener('pointerup', onUp)
+        if (ev.shiftKey) {
+          // Latch to the dominant axis once, then pin the other to its start value.
+          if (!axis && (gx !== startGX || gz !== startGZ)) {
+            axis = Math.abs(gx - startGX) >= Math.abs(gz - startGZ) ? 'x' : 'z'
+          }
+          if (axis === 'x') gz = startGZ
+          else if (axis === 'z') gx = startGX
+        } else {
+          axis = null
+        }
+
+        if (isGroup || isCopy) {
+          const g = computeGroupGhost(ids, gx - startGX, gz - startGZ, isCopy)
+          if (!g) return
+          if (!moved && g.dGridX === 0 && g.dGridZ === 0) return
+          moved = true
+          editor().setGroupGhost(g)
+          return
+        }
+
+        const ghost = computeGhost(
+          templateId,
+          gridToWorld(gx, cellSize),
+          gridToWorld(gz, cellSize),
+          rotation,
+          rackId,
+        )
+        if (!ghost) return
+        if (!moved && ghost.gridX === startGX && ghost.gridZ === startGZ) return
+        moved = true
+        editor().setGhost(ghost)
+      },
+
+      onEnd: (committed) => {
+        draggingRef.current = false
+        if (committed && moved) commitMoveGhost()
+        const ed2 = editor()
+        ed2.setMovingRackId(null)
+        ed2.setMovingRackIds([])
+        ed2.setGhost(null)
+        ed2.setGroupGhost(null)
+      },
+    })
   }
 
   const onClick = (e: ThreeEvent<MouseEvent>) => {
@@ -109,7 +151,12 @@ export function Rack({ rackId }: { rackId: string }) {
     }
     if (mode !== 'select') return
     e.stopPropagation()
-    if (selected && groupRef.current) {
+    if (e.shiftKey || e.ctrlKey || e.metaKey) {
+      editor().toggleRackSelection(rackId)
+      return
+    }
+    // A single selected rack drills into slot selection on a second click.
+    if (selected && editor().selectedRackIds.size === 1 && groupRef.current) {
       // Pick the slot under the click from the intersection point — no extra raycast needed.
       tmpLocal.copy(e.point)
       groupRef.current.worldToLocal(tmpLocal)
@@ -164,7 +211,8 @@ export function Rack({ rackId }: { rackId: string }) {
             opacity={selected ? 0.1 : 0.06}
             depthWrite={false}
           />
-          {selected && <Edges color="#4c9aff" />}
+          {/* The primary of a multi-selection gets the solid ring; the rest read as secondary. */}
+          {selected && <Edges color="#4c9aff" opacity={isPrimary ? 1 : 0.45} transparent />}
         </mesh>
       )}
     </animated.group>

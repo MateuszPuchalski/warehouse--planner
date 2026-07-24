@@ -1,14 +1,28 @@
-import { useMemo } from 'react'
-import type { SlotStatus, WallOpening, ZoneKind } from '../types'
+import { useMemo, useState } from 'react'
+import type { RackRotation, SlotStatus, WallOpening, ZoneKind } from '../types'
 import { useWarehouseStore } from '../store/useWarehouseStore'
 import { useEditorStore } from '../store/useEditorStore'
 import { countOverVolume, effectiveVolume, parseSlotKey, rackStats, resolveSlot, slotVolumeM3, stockVolumeM3 } from '../lib/rackGeometry'
-import { rotateGhostOrSelection, requestDelete } from '../lib/editorActions'
+import {
+  alignSelection,
+  applyArray,
+  deleteSelected,
+  distributeSelection,
+  duplicateSelection,
+  previewArray,
+  requestDelete,
+  rotateGhostOrSelection,
+  rotateSelection,
+  setRackPosition,
+  setRackRotationAbs,
+} from '../lib/editorActions'
+import type { AlignMode } from '../lib/align'
+import type { ArraySpec } from '../lib/arrayTool'
 import { wallLengthM } from '../lib/walls'
 import { ZONE_KINDS, zoneColor, zoneRectM } from '../lib/zones'
 import { normalizeUserRackCode } from '../lib/locationCode'
 import { useRackStock } from '../store/useStockStore'
-import { statusLabel, useT } from '../lib/i18n'
+import { statusLabel, useT, type TranslationKey } from '../lib/i18n'
 import { SlotGrid } from './SlotGrid'
 
 /** Stable pastel tile color from a product symbol (placeholder thumbnail). */
@@ -503,13 +517,36 @@ function RackPanel({ rackId }: { rackId: string }) {
         </select>
       </label>
 
+      <NumField
+        label={t('rack.posX')}
+        value={Number((rack.gridX * cellSize).toFixed(2))}
+        step={cellSize}
+        suffix="m"
+        onChange={(v) => setRackPosition(rackId, v / cellSize, rack.gridZ)}
+      />
+      <NumField
+        label={t('rack.posZ')}
+        value={Number((rack.gridZ * cellSize).toFixed(2))}
+        step={cellSize}
+        suffix="m"
+        onChange={(v) => setRackPosition(rackId, rack.gridX, v / cellSize)}
+      />
+      <label className="flex items-center justify-between gap-2 text-xs">
+        <span className="text-muted">{t('rack.rotation')}</span>
+        <select
+          className="field w-20"
+          value={rack.rotation}
+          onChange={(e) => setRackRotationAbs(rackId, Number(e.target.value) as RackRotation)}
+        >
+          {[0, 90, 180, 270].map((deg) => (
+            <option key={deg} value={deg}>
+              {deg}°
+            </option>
+          ))}
+        </select>
+      </label>
+
       <div className="grid grid-cols-2 gap-1 text-[11px] text-muted">
-        <span>
-          {t('rack.position')}: {(rack.gridX * cellSize).toFixed(1)}, {(rack.gridZ * cellSize).toFixed(1)} m
-        </span>
-        <span>
-          {t('rack.rotation')}: {rack.rotation}°
-        </span>
         <span>{t('rack.occupied', { occ: stats.occupied, total: stats.total })}</span>
         <span className={stats.overweight > 0 ? 'font-semibold text-danger' : ''}>
           {t('rack.overweight', { n: stats.overweight })}
@@ -530,6 +567,8 @@ function RackPanel({ rackId }: { rackId: string }) {
         </button>
       </div>
 
+      <ArraySection seedTemplateId={rack.templateId} />
+
       <div>
         <div className="panel-title mb-1.5">{t('rack.slotsTitle')}</div>
         <SlotGrid rack={rack} template={template} />
@@ -540,13 +579,167 @@ function RackPanel({ rackId }: { rackId: string }) {
   )
 }
 
+const ALIGN_BUTTONS: { mode: AlignMode; key: TranslationKey }[] = [
+  { mode: 'minX', key: 'multi.alignLeft' },
+  { mode: 'centerX', key: 'multi.alignCenterX' },
+  { mode: 'maxX', key: 'multi.alignRight' },
+  { mode: 'minZ', key: 'multi.alignTop' },
+  { mode: 'centerZ', key: 'multi.alignCenterZ' },
+  { mode: 'maxZ', key: 'multi.alignBottom' },
+]
+
+/**
+ * Array / rack-run builder. Lives inline in the Inspector (rather than as a modal) and
+ * previews live through the group ghost, so the copies are visible in 3D before commit.
+ */
+function ArraySection({ seedTemplateId }: { seedTemplateId?: string }) {
+  const cellSize = useWarehouseStore((s) => s.layout.floor.cellSize)
+  const setGroupGhost = useEditorStore((s) => s.setGroupGhost)
+  const t = useT()
+  const [open, setOpen] = useState(false)
+  const [spec, setSpec] = useState<ArraySpec>({
+    countX: 2,
+    countZ: 1,
+    spacingXCells: 1,
+    spacingZCells: 1,
+    signX: 1,
+    signZ: 1,
+  })
+
+  // Seed the step from the rack's own footprint so copies sit adjacent, not overlapping.
+  const openForm = () => {
+    const tpl = seedTemplateId
+      ? useWarehouseStore.getState().layout.templates[seedTemplateId]
+      : undefined
+    const next = tpl
+      ? {
+          ...spec,
+          spacingXCells: Math.max(1, Math.ceil((tpl.bays * tpl.bayWidth + tpl.uprightSize) / cellSize)),
+          spacingZCells: Math.max(1, Math.ceil(tpl.depth / cellSize)),
+        }
+      : spec
+    setSpec(next)
+    setOpen(true)
+    previewArray(next)
+  }
+
+  const patch = (p: Partial<ArraySpec>) => {
+    const next = { ...spec, ...p }
+    setSpec(next)
+    previewArray(next)
+  }
+
+  const close = () => {
+    setOpen(false)
+    setGroupGhost(null)
+  }
+
+  return (
+    <div>
+      <button className="btn w-full justify-center" onClick={() => (open ? close() : openForm())}>
+        {open ? t('array.close') : t('rack.array')}
+      </button>
+      {open && (
+        <div className="mt-2 flex flex-col gap-2 rounded-md border border-border bg-bg/40 p-2">
+          <NumField label={t('array.countX')} value={spec.countX} step={1} min={1} max={50}
+            onChange={(v) => patch({ countX: Math.round(v) })} />
+          <NumField label={t('array.countZ')} value={spec.countZ} step={1} min={1} max={50}
+            onChange={(v) => patch({ countZ: Math.round(v) })} />
+          <NumField label={t('array.spacingX')} value={Number((spec.spacingXCells * cellSize).toFixed(2))}
+            step={cellSize} suffix="m"
+            onChange={(v) => patch({ spacingXCells: Math.max(1, Math.round(v / cellSize)) })} />
+          <NumField label={t('array.spacingZ')} value={Number((spec.spacingZCells * cellSize).toFixed(2))}
+            step={cellSize} suffix="m"
+            onChange={(v) => patch({ spacingZCells: Math.max(1, Math.round(v / cellSize)) })} />
+          <div className="flex gap-1">
+            <button className="btn flex-1 justify-center"
+              onClick={() => patch({ signX: (spec.signX * -1) as 1 | -1 })}>
+              X {spec.signX > 0 ? '→' : '←'}
+            </button>
+            <button className="btn flex-1 justify-center"
+              onClick={() => patch({ signZ: (spec.signZ * -1) as 1 | -1 })}>
+              Z {spec.signZ > 0 ? '↓' : '↑'}
+            </button>
+          </div>
+          <button
+            className="btn btn-accent justify-center"
+            onClick={() => {
+              applyArray(spec)
+              setOpen(false)
+            }}
+          >
+            {t('array.apply')}
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
+
+/** Panel shown when several racks are selected: group actions instead of per-rack fields. */
+function MultiRackPanel() {
+  const ids = useEditorStore((s) => s.selectedRackIds)
+  const racks = useWarehouseStore((s) => s.layout.racks)
+  const t = useT()
+
+  const selected = useMemo(
+    () => [...ids].map((id) => racks[id]).filter((r): r is NonNullable<typeof r> => !!r),
+    [ids, racks],
+  )
+  const mixed = new Set(selected.map((r) => r.templateId)).size > 1
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="panel-title">{t('multi.title', { n: selected.length })}</div>
+      {mixed && <div className="text-[11px] text-muted">{t('multi.mixedTemplates')}</div>}
+
+      <div>
+        <div className="panel-title mb-1.5">{t('multi.align')}</div>
+        <div className="grid grid-cols-3 gap-1">
+          {ALIGN_BUTTONS.map((b) => (
+            <button key={b.mode} className="btn justify-center" onClick={() => alignSelection(b.mode)}>
+              {t(b.key)}
+            </button>
+          ))}
+        </div>
+        <div className="mt-1 grid grid-cols-2 gap-1">
+          <button className="btn justify-center" onClick={() => distributeSelection('x')}>
+            {t('multi.distributeX')}
+          </button>
+          <button className="btn justify-center" onClick={() => distributeSelection('z')}>
+            {t('multi.distributeZ')}
+          </button>
+        </div>
+      </div>
+
+      <div className="flex gap-1">
+        <button className="btn flex-1 justify-center" onClick={duplicateSelection}>
+          {t('multi.duplicate')}
+        </button>
+        <button className="btn flex-1 justify-center" onClick={rotateSelection}>
+          {t('multi.rotate')}
+        </button>
+      </div>
+
+      <ArraySection seedTemplateId={selected[0]?.templateId} />
+
+      <button className="btn btn-danger justify-center" onClick={deleteSelected}>
+        {t('multi.delete', { n: selected.length })}
+      </button>
+    </div>
+  )
+}
+
 export function Inspector() {
+  const multiCount = useEditorStore((s) => s.selectedRackIds.size)
   const selectedRackId = useEditorStore((s) => s.selectedRackId)
   const selectedWallId = useEditorStore((s) => s.selectedWallId)
   const selectedZoneId = useEditorStore((s) => s.selectedZoneId)
   return (
     <aside className="w-72 shrink-0 overflow-y-auto border-l border-border bg-panel p-3">
-      {selectedRackId ? (
+      {multiCount > 1 ? (
+        <MultiRackPanel />
+      ) : selectedRackId ? (
         <RackPanel rackId={selectedRackId} />
       ) : selectedWallId ? (
         <WallPanel wallId={selectedWallId} />

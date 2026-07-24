@@ -1,5 +1,15 @@
 import { create } from 'zustand'
-import type { ColorMode, EditorMode, GhostState, RackRotation, SlotKey, WallDraft, ZoneDraft } from '../types'
+import type {
+  ColorMode,
+  EditorMode,
+  GhostState,
+  GroupGhostState,
+  MarqueeRect,
+  RackRotation,
+  SlotKey,
+  WallDraft,
+  ZoneDraft,
+} from '../types'
 
 export type AppView = 'home' | 'editor'
 
@@ -11,6 +21,14 @@ export interface EditorState {
   placeRotation: RackRotation
   ghost: GhostState | null
   movingRackId: string | null
+  /** Racks moving as a rigid group; empty for a single-rack drag. */
+  movingRackIds: Set<string>
+  /** Live preview of a group move / array, or null. */
+  groupGhost: GroupGhostState | null
+  /** Screen-space marquee rectangle while box-selecting, or null. */
+  marquee: MarqueeRect | null
+  /** Authoritative rack selection. `selectedRackId` is the derived primary of this set. */
+  selectedRackIds: Set<string>
   selectedRackId: string | null
   selectedSlotKey: SlotKey | null
   selectedWallId: string | null
@@ -38,7 +56,15 @@ export interface EditorState {
   setGhost: (ghost: GhostState | null) => void
   setPlaceRotation: (r: RackRotation) => void
   setMovingRackId: (id: string | null) => void
+  setMovingRackIds: (ids: Iterable<string>) => void
+  setGroupGhost: (g: GroupGhostState | null) => void
+  setMarquee: (m: MarqueeRect | null) => void
   selectRack: (id: string | null) => void
+  /** Shift/Ctrl-click: add or remove one rack from the selection. */
+  toggleRackSelection: (id: string) => void
+  /** Replace the whole rack selection (marquee, select-all, duplicate result). */
+  setRackSelection: (ids: Iterable<string>) => void
+  clearRackSelection: () => void
   selectSlot: (key: SlotKey | null) => void
   selectWall: (id: string | null) => void
   selectZone: (id: string | null) => void
@@ -64,6 +90,33 @@ export interface EditorState {
 
 let toastTimer: number | undefined
 
+/**
+ * Single place that keeps the rack selection consistent: `selectedRackId` is always
+ * the last-inserted member of `selectedRackIds` (the "primary" the Inspector edits),
+ * a non-empty rack selection clears any wall/zone selection, and the slot selection
+ * only survives while exactly the same single rack stays selected.
+ */
+function selectionPatch(
+  s: EditorState,
+  ids: Iterable<string>,
+): Pick<
+  EditorState,
+  'selectedRackIds' | 'selectedRackId' | 'selectedSlotKey' | 'selectedWallId' | 'selectedZoneId'
+> {
+  const selectedRackIds = ids instanceof Set ? ids : new Set(ids)
+  let primary: string | null = null
+  for (const id of selectedRackIds) primary = id
+  const keepSlot =
+    selectedRackIds.size === 1 && s.selectedRackIds.size === 1 && s.selectedRackId === primary
+  return {
+    selectedRackIds,
+    selectedRackId: primary,
+    selectedSlotKey: keepSlot ? s.selectedSlotKey : null,
+    selectedWallId: primary ? null : s.selectedWallId,
+    selectedZoneId: primary ? null : s.selectedZoneId,
+  }
+}
+
 export const useEditorStore = create<EditorState>()((set, get) => ({
   view: 'home',
   mode: 'select',
@@ -71,6 +124,10 @@ export const useEditorStore = create<EditorState>()((set, get) => ({
   placeRotation: 0,
   ghost: null,
   movingRackId: null,
+  movingRackIds: new Set<string>(),
+  groupGhost: null,
+  marquee: null,
+  selectedRackIds: new Set<string>(),
   selectedRackId: null,
   selectedSlotKey: null,
   selectedWallId: null,
@@ -96,6 +153,9 @@ export const useEditorStore = create<EditorState>()((set, get) => ({
       mode,
       ghost: null,
       movingRackId: null,
+      movingRackIds: s.movingRackIds.size ? new Set<string>() : s.movingRackIds,
+      groupGhost: null,
+      marquee: null,
       wallDraft: null,
       zoneDraft: null,
       suggestedSlots: s.suggestedSlots.size ? new Set<string>() : s.suggestedSlots,
@@ -109,6 +169,9 @@ export const useEditorStore = create<EditorState>()((set, get) => ({
       placingTemplateId: templateId,
       ghost: null,
       movingRackId: null,
+      movingRackIds: new Set<string>(),
+      groupGhost: null,
+      marquee: null,
       wallDraft: null,
       zoneDraft: null,
     }),
@@ -130,28 +193,55 @@ export const useEditorStore = create<EditorState>()((set, get) => ({
 
   setPlaceRotation: (placeRotation) => set({ placeRotation }),
   setMovingRackId: (movingRackId) => set({ movingRackId }),
+  setMovingRackIds: (ids) => set({ movingRackIds: new Set(ids) }),
 
-  selectRack: (id) =>
-    set((s) => ({
-      selectedRackId: id,
-      selectedSlotKey: s.selectedRackId === id ? s.selectedSlotKey : null,
-      selectedWallId: id ? null : s.selectedWallId,
-      selectedZoneId: id ? null : s.selectedZoneId,
-    })),
+  setGroupGhost: (g) => {
+    const cur = get().groupGhost
+    if (g && cur && cur.dGridX === g.dGridX && cur.dGridZ === g.dGridZ && cur.valid === g.valid) return
+    set({ groupGhost: g })
+  },
+
+  setMarquee: (marquee) => set({ marquee }),
+
+  selectRack: (id) => set((s) => selectionPatch(s, id ? [id] : [])),
+
+  toggleRackSelection: (id) =>
+    set((s) => {
+      const next = new Set(s.selectedRackIds)
+      // Re-inserting makes the toggled rack the primary (Set preserves insertion order).
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return selectionPatch(s, next)
+    }),
+
+  setRackSelection: (ids) => set((s) => selectionPatch(s, ids)),
+  clearRackSelection: () => set((s) => selectionPatch(s, [])),
 
   selectSlot: (selectedSlotKey) => set({ selectedSlotKey }),
 
   selectWall: (selectedWallId) =>
-    set(
+    set((s) =>
       selectedWallId
-        ? { selectedWallId, selectedRackId: null, selectedSlotKey: null, selectedZoneId: null }
+        ? {
+            selectedWallId,
+            selectedRackIds: s.selectedRackIds.size ? new Set<string>() : s.selectedRackIds,
+            selectedRackId: null,
+            selectedSlotKey: null,
+            selectedZoneId: null,
+          }
         : { selectedWallId: null },
     ),
 
   selectZone: (selectedZoneId) =>
-    set(
+    set((s) =>
       selectedZoneId
-        ? { selectedZoneId, selectedRackId: null, selectedSlotKey: null, selectedWallId: null }
+        ? {
+            selectedZoneId,
+            selectedRackIds: s.selectedRackIds.size ? new Set<string>() : s.selectedRackIds,
+            selectedRackId: null,
+            selectedSlotKey: null,
+            selectedWallId: null,
+          }
         : { selectedZoneId: null },
     ),
 

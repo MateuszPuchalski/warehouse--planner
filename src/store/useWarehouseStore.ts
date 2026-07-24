@@ -11,7 +11,20 @@ export interface WarehouseState {
   addRack: (templateId: string, gridX: number, gridZ: number, rotation: RackRotation) => string
   moveRack: (id: string, gridX: number, gridZ: number) => void
   rotateRack: (id: string) => void
+  setRackRotation: (id: string, rotation: RackRotation) => void
   deleteRack: (id: string) => void
+  /**
+   * Group operations. Each is ONE `set` — and must stay that way: the temporal
+   * `handleSet` below DROPS snapshots inside its coalescing window, so a loop over
+   * the single-rack actions would record only the first and corrupt undo.
+   */
+  moveRacks: (moves: { id: string; gridX: number; gridZ: number }[]) => void
+  rotateRacks: (rots: { id: string; rotation: RackRotation }[]) => void
+  deleteRacks: (ids: string[]) => void
+  /** Clone racks by a grid delta; returns the new ids in input order. */
+  duplicateRacks: (ids: string[], dGridX: number, dGridZ: number) => string[]
+  /** Clone racks to explicit positions (array tool); returns the new ids. */
+  cloneRacks: (specs: { sourceId: string; gridX: number; gridZ: number }[]) => string[]
   updateRackMeta: (id: string, patch: { name?: string; templateId?: string; code?: string }) => void
   updateSlot: (rackId: string, key: string, patch: SlotOverride) => void
   resetSlot: (rackId: string, key: string) => void
@@ -43,6 +56,19 @@ export interface WarehouseState {
 }
 
 type PartialWarehouseState = Pick<WarehouseState, 'layout'>
+
+/** Window within which successive mutations collapse into a single undo step. */
+const COALESCE_MS = 250
+let lastHistoryAt = 0
+
+/**
+ * Guarantee the NEXT mutation gets its own undo entry, bypassing the coalescing
+ * window. Call before a discrete gesture (drop, group move, duplicate, delete) —
+ * but NOT for arrow-key nudging or field typing, which should keep coalescing.
+ */
+export function markHistoryBoundary(): void {
+  lastHistoryAt = 0
+}
 
 function touch(layout: WarehouseLayout): WarehouseLayout {
   return { ...layout, updatedAt: new Date().toISOString() }
@@ -92,6 +118,18 @@ export const useWarehouseStore = create<WarehouseState>()(
           }
         }),
 
+      setRackRotation: (id, rotation) =>
+        set((s) => {
+          const rack = s.layout.racks[id]
+          if (!rack || rack.rotation === rotation) return s
+          return {
+            layout: touch({
+              ...s.layout,
+              racks: { ...s.layout.racks, [id]: { ...rack, rotation } },
+            }),
+          }
+        }),
+
       deleteRack: (id) =>
         set((s) => {
           if (!s.layout.racks[id]) return s
@@ -99,6 +137,79 @@ export const useWarehouseStore = create<WarehouseState>()(
           delete racks[id]
           return { layout: touch({ ...s.layout, racks }) }
         }),
+
+      moveRacks: (moves) =>
+        set((s) => {
+          if (moves.length === 0) return s
+          const racks = { ...s.layout.racks }
+          let changed = false
+          for (const m of moves) {
+            const rack = racks[m.id]
+            if (!rack || (rack.gridX === m.gridX && rack.gridZ === m.gridZ)) continue
+            racks[m.id] = { ...rack, gridX: m.gridX, gridZ: m.gridZ }
+            changed = true
+          }
+          return changed ? { layout: touch({ ...s.layout, racks }) } : s
+        }),
+
+      rotateRacks: (rots) =>
+        set((s) => {
+          if (rots.length === 0) return s
+          const racks = { ...s.layout.racks }
+          let changed = false
+          for (const r of rots) {
+            const rack = racks[r.id]
+            if (!rack || rack.rotation === r.rotation) continue
+            racks[r.id] = { ...rack, rotation: r.rotation }
+            changed = true
+          }
+          return changed ? { layout: touch({ ...s.layout, racks }) } : s
+        }),
+
+      deleteRacks: (ids) =>
+        set((s) => {
+          const racks = { ...s.layout.racks }
+          let changed = false
+          for (const id of ids) {
+            if (!racks[id]) continue
+            delete racks[id]
+            changed = true
+          }
+          return changed ? { layout: touch({ ...s.layout, racks }) } : s
+        }),
+
+      duplicateRacks: (ids, dGridX, dGridZ) => {
+        const specs = ids.map((sourceId) => {
+          const r = get().layout.racks[sourceId]
+          return { sourceId, gridX: (r?.gridX ?? 0) + dGridX, gridZ: (r?.gridZ ?? 0) + dGridZ }
+        })
+        return get().cloneRacks(specs)
+      },
+
+      cloneRacks: (specs) => {
+        const newIds: string[] = []
+        set((s) => {
+          const racks = { ...s.layout.racks }
+          for (const spec of specs) {
+            const src = s.layout.racks[spec.sourceId]
+            if (!src) continue
+            const id = newId()
+            newIds.push(id)
+            // Codes must stay unique (stock lookup keys on them), so copies start uncoded.
+            racks[id] = {
+              ...src,
+              id,
+              code: undefined,
+              name: undefined,
+              gridX: spec.gridX,
+              gridZ: spec.gridZ,
+              slotOverrides: { ...src.slotOverrides },
+            }
+          }
+          return newIds.length ? { layout: touch({ ...s.layout, racks }) } : s
+        })
+        return newIds
+      },
 
       updateRackMeta: (id, patch) =>
         set((s) => {
@@ -305,11 +416,10 @@ export const useWarehouseStore = create<WarehouseState>()(
       partialize: (state): PartialWarehouseState => ({ layout: state.layout }),
       handleSet: (handleSet) => {
         // Collapse rapid successive edits (typing in a number field) into one undo step.
-        let last = 0
         return ((...args: Parameters<typeof handleSet>) => {
           const now = Date.now()
-          if (now - last < 250) return
-          last = now
+          if (now - lastHistoryAt < COALESCE_MS) return
+          lastHistoryAt = now
           handleSet(...args)
         }) as typeof handleSet
       },

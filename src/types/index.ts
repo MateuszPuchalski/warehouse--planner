@@ -209,6 +209,39 @@ export interface GhostState {
   valid: boolean
 }
 
+/** One rack's pose inside a group move / array preview. */
+export interface GroupGhostItem {
+  rackId: string
+  templateId: string
+  gridX: number
+  gridZ: number
+  rotation: RackRotation
+  /** False when this particular copy overlaps or leaves the floor. */
+  valid: boolean
+}
+
+/**
+ * Live preview of a rigid group move or an array. A single grid delta is the source
+ * of truth so the group keeps its shape; `items` are the materialized poses.
+ */
+export interface GroupGhostState {
+  items: GroupGhostItem[]
+  dGridX: number
+  dGridZ: number
+  /** True only when every item is placeable. */
+  valid: boolean
+  /** True for array/duplicate previews, where source racks stay visible. */
+  copy?: boolean
+}
+
+/** Screen-space (client px) rectangle of an in-progress marquee selection. */
+export interface MarqueeRect {
+  x0: number
+  y0: number
+  x1: number
+  y1: number
+}
+
 /** Live preview of a wall being drawn by dragging. Endpoints in grid coordinates. */
 export interface WallDraft {
   x1: number

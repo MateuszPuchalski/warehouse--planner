@@ -1,4 +1,3 @@
-import * as THREE from 'three'
 import { Grid, Line } from '@react-three/drei'
 import { useThree, type ThreeEvent } from '@react-three/fiber'
 import { useWarehouseStore } from '../store/useWarehouseStore'
@@ -12,11 +11,8 @@ import {
   placeAtGhost,
   rotateGhostOrSelection,
 } from '../lib/editorActions'
-
-const FLOOR_PLANE = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0)
-const wallRaycaster = new THREE.Raycaster()
-const tmpNdc = new THREE.Vector2()
-const tmpHit = new THREE.Vector3()
+import { usePlaneDrag } from './usePlaneDrag'
+import { racksInScreenRect } from '../lib/screenPick'
 
 /** Warehouse floor — visual plane + grid, and the single raycast target for placement. */
 export function Floor() {
@@ -25,9 +21,9 @@ export function Floor() {
   const placingTemplateId = useEditorStore((s) => s.placingTemplateId)
 
   const editor = useEditorStore.getState
+  const startDrag = usePlaneDrag()
   const camera = useThree((s) => s.camera)
   const gl = useThree((s) => s.gl)
-  const controls = useThree((s) => s.controls) as unknown as { enabled: boolean } | null
 
   const onPointerMove = (e: ThreeEvent<PointerEvent>) => {
     editor().setPointer({ x: e.point.x, z: e.point.z })
@@ -37,47 +33,73 @@ export function Floor() {
     }
   }
 
-  /** Drag on the floor in wall/zone mode to draw a segment/rectangle, tracked via window listeners. */
+  /** Shift+drag on the floor in select mode: marquee box-selection (plain drag orbits). */
+  const startMarquee = (e: ThreeEvent<PointerEvent>) => {
+    const origin = { x: e.nativeEvent.clientX, y: e.nativeEvent.clientY }
+    const additive = e.ctrlKey || e.metaKey
+    const base = additive ? [...editor().selectedRackIds] : []
+    editor().setMarquee({ x0: origin.x, y0: origin.y, x1: origin.x, y1: origin.y })
+
+    startDrag({
+      onMove: (_hit, ev) => {
+        const rect = { x0: origin.x, y0: origin.y, x1: ev.clientX, y1: ev.clientY }
+        editor().setMarquee(rect)
+        const hits = racksInScreenRect(
+          useWarehouseStore.getState().layout,
+          camera,
+          gl.domElement,
+          rect,
+        )
+        editor().setRackSelection([...base, ...hits])
+      },
+      onEnd: (committed) => {
+        editor().setMarquee(null)
+        if (!committed) editor().setRackSelection(base)
+      },
+    })
+  }
+
+  /** Drag on the floor in wall/zone mode to draw a segment/rectangle. */
   const onPointerDown = (e: ThreeEvent<PointerEvent>) => {
+    if (mode === 'select' && e.button === 0 && e.shiftKey) {
+      e.stopPropagation()
+      startMarquee(e)
+      return
+    }
     if ((mode !== 'wall' && mode !== 'zone') || e.button !== 0) return
     e.stopPropagation()
-    if (controls) controls.enabled = false
     const drawZone = mode === 'zone'
     const startX = e.point.x
     const startZ = e.point.z
     if (drawZone) editor().setZoneDraft(computeZoneDraft(startX, startZ, startX, startZ))
     else editor().setWallDraft(computeWallDraft(startX, startZ, startX, startZ))
 
-    const onMove = (ev: PointerEvent) => {
-      const rect = gl.domElement.getBoundingClientRect()
-      tmpNdc.set(
-        ((ev.clientX - rect.left) / rect.width) * 2 - 1,
-        -((ev.clientY - rect.top) / rect.height) * 2 + 1,
-      )
-      wallRaycaster.setFromCamera(tmpNdc, camera)
-      if (!wallRaycaster.ray.intersectPlane(FLOOR_PLANE, tmpHit)) return
-      editor().setPointer({ x: tmpHit.x, z: tmpHit.z })
-      if (drawZone) editor().setZoneDraft(computeZoneDraft(startX, startZ, tmpHit.x, tmpHit.z))
-      else editor().setWallDraft(computeWallDraft(startX, startZ, tmpHit.x, tmpHit.z))
-    }
-
-    const onUp = () => {
-      window.removeEventListener('pointermove', onMove)
-      window.removeEventListener('pointerup', onUp)
-      if (controls) controls.enabled = true
-      if (drawZone) commitZoneDraft()
-      else commitWallDraft()
-    }
-
-    window.addEventListener('pointermove', onMove)
-    window.addEventListener('pointerup', onUp)
+    startDrag({
+      onMove: (hit) => {
+        editor().setPointer({ x: hit.x, z: hit.z })
+        if (drawZone) editor().setZoneDraft(computeZoneDraft(startX, startZ, hit.x, hit.z))
+        else editor().setWallDraft(computeWallDraft(startX, startZ, hit.x, hit.z))
+      },
+      onEnd: (committed) => {
+        if (!committed) {
+          // Escape / right-click aborted the draw.
+          editor().setZoneDraft(null)
+          editor().setWallDraft(null)
+          return
+        }
+        if (drawZone) commitZoneDraft()
+        else commitWallDraft()
+      },
+    })
   }
 
   const onClick = (e: ThreeEvent<MouseEvent>) => {
     if (e.delta > 4) return
     if (mode === 'place') placeAtGhost()
     else if (mode === 'select') {
-      editor().selectRack(null)
+      // A shift-click on the floor ends a marquee; it must not clear the result.
+      if (e.shiftKey || e.ctrlKey || e.metaKey) return
+      editor().clearRackSelection()
       editor().selectWall(null)
       editor().selectZone(null)
     }

@@ -64,14 +64,107 @@ export function wallAABBs(layout: WarehouseLayout): AABB[] {
   })
 }
 
-function rackAABBs(layout: WarehouseLayout): { id: string; aabb: AABB }[] {
-  const out: { id: string; aabb: AABB }[] = []
+export interface RackEntry {
+  id: string
+  aabb: AABB
+}
+
+/**
+ * Rack AABBs for a layout, memoized on the layout object's identity. Every store
+ * mutation runs the layout through `touch()`, producing a fresh object, so identity
+ * is a correct cache key and stale entries are garbage-collected with the layout.
+ */
+const rackIndexCache = new WeakMap<WarehouseLayout, RackEntry[]>()
+const wallIndexCache = new WeakMap<WarehouseLayout, AABB[]>()
+const aisleCache = new WeakMap<WarehouseLayout, AisleViolation[]>()
+
+export function rackIndex(layout: WarehouseLayout): RackEntry[] {
+  const hit = rackIndexCache.get(layout)
+  if (hit) return hit
+  const out: RackEntry[] = []
   for (const r of Object.values(layout.racks)) {
     const t = layout.templates[r.templateId]
     if (!t) continue
     out.push({ id: r.id, aabb: aabbFor(r.gridX, r.gridZ, r.rotation, t, layout.floor.cellSize) })
   }
+  rackIndexCache.set(layout, out)
   return out
+}
+
+export function wallIndex(layout: WarehouseLayout): AABB[] {
+  const hit = wallIndexCache.get(layout)
+  if (hit) return hit
+  const out = wallAABBs(layout)
+  wallIndexCache.set(layout, out)
+  return out
+}
+
+/** True when the footprint lies fully inside the floor rectangle. */
+function withinFloor(aabb: AABB, layout: WarehouseLayout): boolean {
+  const hw = layout.floor.widthM / 2
+  const hd = layout.floor.depthM / 2
+  return !(aabb.minX < -hw - EPS || aabb.maxX > hw + EPS || aabb.minZ < -hd - EPS || aabb.maxZ > hd + EPS)
+}
+
+export interface RackMove {
+  rackId: string
+  gridX: number
+  gridZ: number
+  /** Omitted = keep the rack's current rotation. */
+  rotation?: RackRotation
+  /** Omitted = keep the rack's current template (differs for array/duplicate copies). */
+  templateId?: string
+}
+
+export interface GroupValidity {
+  valid: boolean
+  invalidIds: Set<string>
+}
+
+/**
+ * Validity of a whole group of moves in one pass: each moved footprint against the
+ * floor bounds, against every rack that is NOT moving, and against the other moved
+ * footprints. Moving racks are excluded from the static set so they never collide
+ * with the positions they are leaving.
+ */
+export function validateGroupPlacement(layout: WarehouseLayout, moves: RackMove[]): GroupValidity {
+  const invalidIds = new Set<string>()
+  const movingIds = new Set(moves.map((m) => m.rackId))
+  const statics = rackIndex(layout).filter((e) => !movingIds.has(e.id))
+
+  const placed: { id: string; aabb: AABB }[] = []
+  for (const m of moves) {
+    const rack = layout.racks[m.rackId]
+    const templateId = m.templateId ?? rack?.templateId
+    const t = templateId ? layout.templates[templateId] : undefined
+    if (!t) {
+      invalidIds.add(m.rackId)
+      continue
+    }
+    const rotation = m.rotation ?? rack?.rotation ?? 0
+    const aabb = aabbFor(m.gridX, m.gridZ, rotation, t, layout.floor.cellSize)
+    let ok = withinFloor(aabb, layout)
+    if (ok) {
+      for (const s of statics) {
+        if (overlaps(aabb, s.aabb)) {
+          ok = false
+          break
+        }
+      }
+    }
+    if (ok) {
+      for (const p of placed) {
+        if (overlaps(aabb, p.aabb)) {
+          ok = false
+          invalidIds.add(p.id)
+          break
+        }
+      }
+    }
+    if (!ok) invalidIds.add(m.rackId)
+    placed.push({ id: m.rackId, aabb })
+  }
+  return { valid: invalidIds.size === 0, invalidIds }
 }
 
 /** Hard placement rule: inside floor bounds and no overlap with other racks. */
@@ -86,12 +179,8 @@ export function isPlacementValid(
   const t = layout.templates[templateId]
   if (!t) return false
   const aabb = aabbFor(gridX, gridZ, rotation, t, layout.floor.cellSize)
-  const hw = layout.floor.widthM / 2
-  const hd = layout.floor.depthM / 2
-  if (aabb.minX < -hw - EPS || aabb.maxX > hw + EPS || aabb.minZ < -hd - EPS || aabb.maxZ > hd + EPS) {
-    return false
-  }
-  for (const other of rackAABBs(layout)) {
+  if (!withinFloor(aabb, layout)) return false
+  for (const other of rackIndex(layout)) {
     if (other.id === excludeId) continue
     if (overlaps(aabb, other.aabb)) return false
   }
@@ -105,8 +194,8 @@ function zoneBlocked(zone: AABB, all: AABB[], skipA: AABB, skipB: AABB): boolean
 
 /** Soft rule: every facing pair with a gap between flue tolerance and min aisle width. */
 export function validateAisles(layout: WarehouseLayout): AisleViolation[] {
-  const entries = rackAABBs(layout)
-  const aabbs = [...entries.map((e) => e.aabb), ...wallAABBs(layout)]
+  const entries = rackIndex(layout)
+  const aabbs = [...entries.map((e) => e.aabb), ...wallIndex(layout)]
   const minAisle = layout.floor.minAisleWidthM
   const out: AisleViolation[] = []
   for (let i = 0; i < entries.length; i++) {
@@ -122,6 +211,18 @@ export function validateAisles(layout: WarehouseLayout): AisleViolation[] {
       }
     }
   }
+  return out
+}
+
+/**
+ * `validateAisles` memoized on layout identity. It is O(n²) and is read by both the
+ * 3D guides and the status bar, so the uncached version ran twice per commit.
+ */
+export function validateAislesCached(layout: WarehouseLayout): AisleViolation[] {
+  const hit = aisleCache.get(layout)
+  if (hit) return hit
+  const out = validateAisles(layout)
+  aisleCache.set(layout, out)
   return out
 }
 
