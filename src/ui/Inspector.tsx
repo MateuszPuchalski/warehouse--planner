@@ -16,6 +16,7 @@ import {
   setRackPosition,
   setRackRotationAbs,
 } from '../lib/editorActions'
+import { uncodedRackIds } from '../lib/pickPath'
 import type { AlignMode } from '../lib/align'
 import type { ArraySpec } from '../lib/arrayTool'
 import { wallLengthM } from '../lib/walls'
@@ -79,6 +80,7 @@ function FloorPanel() {
   const clearWalls = useWarehouseStore((s) => s.clearWalls)
   const rackCount = useWarehouseStore((s) => Object.keys(s.layout.racks).length)
   const wallCount = useWarehouseStore((s) => Object.keys(s.layout.walls).length)
+  const uncoded = useWarehouseStore((s) => uncodedRackIds(s.layout).length)
   const t = useT()
 
   return (
@@ -104,6 +106,18 @@ function FloorPanel() {
           onChange={(e) => updateFloor({ showLoadProxies: e.target.checked })}
         />
       </label>
+      <label className="flex items-center justify-between text-xs">
+        <span className="text-muted" title={t('pick.serpentineTip')}>
+          {t('pick.serpentine')}
+        </span>
+        <input
+          type="checkbox"
+          checked={floor.pickSerpentine !== false}
+          onChange={(e) => updateFloor({ pickSerpentine: e.target.checked })}
+        />
+      </label>
+      {uncoded > 0 && <div className="text-[11px] text-muted">{t('pick.uncoded', { n: uncoded })}</div>}
+
       <button className="btn btn-danger mt-2 justify-center" onClick={clearRacks} disabled={rackCount === 0}>
         {t('floor.clear', { n: rackCount })}
       </button>

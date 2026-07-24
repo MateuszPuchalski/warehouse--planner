@@ -44,6 +44,8 @@ export interface EditorState {
   showSuggest: boolean
   showDashboard: boolean
   showInsights: boolean
+  /** Draw the picking walk order on the floor. */
+  showPickPath: boolean
   /** Slots highlighted as put-away suggestions, keyed `${rackId}:${bay}:${level}`. */
   suggestedSlots: Set<string>
   /** Slots highlighted by the SKU search, keyed `${rackId}:${bay}:${level}`. */
@@ -81,6 +83,7 @@ export interface EditorState {
   setShowSuggest: (open: boolean) => void
   setShowDashboard: (open: boolean) => void
   setShowInsights: (open: boolean) => void
+  setShowPickPath: (open: boolean) => void
   setView: (view: AppView) => void
   setSuggestedSlots: (slots: Set<string>) => void
   setFoundSlots: (slots: Set<string>) => void
@@ -143,6 +146,7 @@ export const useEditorStore = create<EditorState>()((set, get) => ({
   showSuggest: false,
   showDashboard: false,
   showInsights: false,
+  showPickPath: false,
   suggestedSlots: new Set<string>(),
   foundSlots: new Set<string>(),
   editingTemplateId: null,
@@ -275,6 +279,7 @@ export const useEditorStore = create<EditorState>()((set, get) => ({
   setShowSuggest: (showSuggest) => set({ showSuggest }),
   setShowDashboard: (showDashboard) => set({ showDashboard }),
   setShowInsights: (showInsights) => set({ showInsights }),
+  setShowPickPath: (showPickPath) => set({ showPickPath }),
   setView: (view) => set({ view }),
   setSuggestedSlots: (suggestedSlots) => set({ suggestedSlots }),
   setFoundSlots: (foundSlots) => set({ foundSlots }),
