@@ -569,6 +569,10 @@ export function escapeAction(): void {
     ed.setShowDashboard(false)
     return
   }
+  if (ed.showPickPath) {
+    ed.setShowPickPath(false)
+    return
+  }
   if (ed.mode !== 'select') {
     ed.setMode('select')
     return

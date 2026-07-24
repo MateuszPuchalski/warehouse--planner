@@ -113,6 +113,11 @@ export interface FloorConfig {
   wallHeightM: number
   /** Default thickness of newly drawn / perimeter walls in meters. */
   wallThicknessM: number
+  /**
+   * Walk every other code line back the other way in the picking order.
+   * Omitted = on, which is how a picker actually moves through a hall.
+   */
+  pickSerpentine?: boolean
 }
 
 /**
