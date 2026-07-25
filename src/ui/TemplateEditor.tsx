@@ -113,9 +113,9 @@ function RackPreview({
           </g>
         )
       })}
-      {/* uprights over the bay boundaries */}
-      {Array.from({ length: bays + 1 }, (_, i) => (
-        <rect key={i} x={x0 + i * bayWidth * scale - upright / 2} y={y0} width={upright} height={bodyH} fill={steel} rx={1} />
+      {/* Frames stand only at the two ends — the columns between are virtual. */}
+      {[0, bays].map((end) => (
+        <rect key={end} x={x0 + end * bayWidth * scale - upright / 2} y={y0} width={upright} height={bodyH} fill={steel} rx={1} />
       ))}
       {/* floor line */}
       <rect x={x0 - 2} y={y0 + bodyH} width={bodyW + 4} height={2.5} fill={steel} rx={1} />
