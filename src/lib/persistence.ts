@@ -1,4 +1,4 @@
-import type { FloorConfig, RackInstance, RackRotation, RackTemplate, Wall, WarehouseLayout } from '../types'
+import type { FloorConfig, RackInstance, RackRotation, RackTemplate, SlotRole, Wall, WarehouseLayout } from '../types'
 import { makePerimeterWalls } from './walls'
 
 const AUTOSAVE_KEY = 'wp:autosave:v1'
@@ -89,12 +89,23 @@ export function validateLayout(raw: unknown): WarehouseLayout {
       }
       levelHeights = [...t.levelHeights]
     }
+    // Explicit per-level roles are optional; anything malformed falls back to the
+    // height-derived roles rather than failing the whole import.
+    let levelRoles: SlotRole[] | undefined
+    if (
+      Array.isArray(t.levelRoles) &&
+      t.levelRoles.length === t.levels &&
+      t.levelRoles.every((r) => r === 'pallet' || r === 'pick')
+    ) {
+      levelRoles = [...t.levelRoles]
+    }
     const carrier = t.carrier && ['pallet', 'carton', 'bin'].includes(t.carrier) ? t.carrier : undefined
     templates[id] = {
       ...t,
       id,
       name: typeof t.name === 'string' ? t.name : id,
       ...(levelHeights ? { levelHeights } : { levelHeights: undefined }),
+      ...(levelRoles ? { levelRoles } : { levelRoles: undefined }),
       ...(carrier ? { carrier } : { carrier: undefined }),
     }
   }
