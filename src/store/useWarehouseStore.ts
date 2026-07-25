@@ -29,6 +29,8 @@ export interface WarehouseState {
   updateSlot: (rackId: string, key: string, patch: SlotOverride) => void
   resetSlot: (rackId: string, key: string) => void
   upsertTemplate: (t: import('../types').RackTemplate) => void
+  /** Add/replace several templates in one history step (e.g. "add all" from the library). */
+  upsertTemplates: (list: import('../types').RackTemplate[]) => void
   deleteTemplate: (id: string) => boolean
   updateFloor: (patch: Partial<FloorConfig>) => void
   setLayoutName: (name: string) => void
@@ -259,12 +261,20 @@ export const useWarehouseStore = create<WarehouseState>()(
           }
         }),
 
-      upsertTemplate: (t) =>
+      upsertTemplate: (t) => get().upsertTemplates([t]),
+
+      // One `set` for the whole list: the history throttle DROPS updates that land
+      // inside its window, so adding N templates one call at a time would leave
+      // undo able to remove only the first.
+      upsertTemplates: (list) =>
         set((s) => {
+          if (list.length === 0) return s
+          const incoming = new Map(list.map((t) => [t.id, t]))
           // Prune slot overrides that fall outside the (possibly shrunken) template.
           const racks = { ...s.layout.racks }
           for (const [rid, r] of Object.entries(racks)) {
-            if (r.templateId !== t.id) continue
+            const t = incoming.get(r.templateId)
+            if (!t) continue
             const pruned = Object.fromEntries(
               Object.entries(r.slotOverrides).filter(([k]) => {
                 const { bay, level } = parseSlotKey(k)
@@ -276,7 +286,7 @@ export const useWarehouseStore = create<WarehouseState>()(
           return {
             layout: touch({
               ...s.layout,
-              templates: { ...s.layout.templates, [t.id]: t },
+              templates: { ...s.layout.templates, ...Object.fromEntries(incoming) },
               racks,
             }),
           }

@@ -112,6 +112,7 @@ const en = {
   'toast.templateInUse': 'Cannot delete: {n} placed rack(s) use this template',
   'toast.savedToLibrary': 'Saved "{name}" to library',
   'toast.addedFromLibrary': 'Added "{name}" to this layout',
+  'toast.addedAllFromLibrary': 'Added {count} templates to this layout',
   'toast.stockImported': 'Imported {items} stock items ({racks} racks created)',
   'toast.stockImportFailed': 'Stock import failed: {msg}',
 
@@ -191,6 +192,8 @@ const en = {
   'tool.hideLibrary': 'Hide library',
   'tool.libraryEmpty': 'Library is empty. Use “Save to library” in the template editor.',
   'tool.add': 'Add',
+  'tool.addAll': '+ Add all ({count})',
+  'tool.inLayout': 'in layout',
   'tool.editTemplate': 'Edit template',
   'tool.card': '{bays} columns × {levels} levels',
 
@@ -487,6 +490,7 @@ const pl: Record<TranslationKey, string> = {
   'toast.templateInUse': 'Nie można usunąć — szablon jest używany przez {n} regał(ów)',
   'toast.savedToLibrary': 'Zapisano „{name}” do biblioteki',
   'toast.addedFromLibrary': 'Dodano „{name}” do tego układu',
+  'toast.addedAllFromLibrary': 'Dodano {count} szablonów do tego układu',
   'toast.stockImported': 'Zaimportowano {items} pozycji (utworzono {racks} regałów)',
   'toast.stockImportFailed': 'Import stanów nieudany: {msg}',
 
@@ -566,6 +570,8 @@ const pl: Record<TranslationKey, string> = {
   'tool.hideLibrary': 'Ukryj bibliotekę',
   'tool.libraryEmpty': 'Biblioteka jest pusta. Użyj „Zapisz do biblioteki” w edytorze szablonów.',
   'tool.add': 'Dodaj',
+  'tool.addAll': '+ Dodaj wszystkie ({count})',
+  'tool.inLayout': 'w układzie',
   'tool.editTemplate': 'Edytuj szablon',
   'tool.card': '{bays} kol. × {levels} poz.',
 
