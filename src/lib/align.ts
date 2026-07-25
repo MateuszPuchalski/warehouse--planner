@@ -1,6 +1,6 @@
 import type { WarehouseLayout } from '../types'
 import { rackIndex, type RackMove } from './collision'
-import { joinedSpacing, runAxis, runCoords } from './runs'
+import { canJoin, joinedSpacing, runAxis, runCoords } from './runs'
 
 export type AlignMode = 'minX' | 'centerX' | 'maxX' | 'minZ' | 'centerZ' | 'maxZ'
 
@@ -51,9 +51,9 @@ export type PackRefusal = 'tooFew' | 'mixed'
  * the others come to it.
  *
  * This is the deterministic counterpart to the drag magnet — on a fine grid, or across a
- * long row, hitting every junction by hand is fiddly. Only racks of one template facing
- * one way can form a run (`runIndex`' rule), so anything mixed is refused rather than
- * silently rearranged.
+ * long row, hitting every junction by hand is fiddly. Only racks of one frame system
+ * facing one way can form a run (`runIndex`' rule), so level layouts may differ but
+ * anything genuinely incompatible is refused rather than silently rearranged.
  */
 export function packRunMoves(
   layout: WarehouseLayout,
@@ -66,7 +66,13 @@ export function packRunMoves(
   if (!tpl) return { refusal: 'mixed' }
   // 0°≡180° and 90°≡270° render identically, so they may share a run.
   const facing = first.rotation % 180
-  if (racks.some((r) => r.templateId !== first.templateId || r.rotation % 180 !== facing)) {
+  const templateOf = (r: (typeof racks)[number]) => layout.templates[r.templateId]
+  if (
+    racks.some((r) => {
+      const t = templateOf(r)
+      return !t || !canJoin(t, tpl) || r.rotation % 180 !== facing
+    })
+  ) {
     return { refusal: 'mixed' }
   }
 
@@ -77,11 +83,12 @@ export function packRunMoves(
   )
   const sorted = [...racks].sort((a, b) => coords.get(a.id)!.along - coords.get(b.id)!.along)
   const anchor = coords.get(sorted[0].id)!
-  const spacing = joinedSpacing(tpl, tpl)
 
   const moves: RackMove[] = []
+  // Widths may differ inside one frame system, so the step is per consecutive pair.
+  let along = anchor.along
   sorted.forEach((r, i) => {
-    const along = anchor.along + i * spacing
+    if (i > 0) along += joinedSpacing(templateOf(sorted[i - 1])!, templateOf(r)!)
     const gridX = (axis === 'x' ? along : anchor.cross) / cell
     const gridZ = (axis === 'x' ? anchor.cross : along) / cell
     if (Math.abs(gridX - r.gridX) < 1e-9 && Math.abs(gridZ - r.gridZ) < 1e-9) return

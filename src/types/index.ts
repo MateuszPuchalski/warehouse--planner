@@ -43,6 +43,13 @@ export interface RackTemplate {
    * overrides the height-based default. Omitted = inferred from each level height.
    */
   levelRoles?: SlotRole[]
+  /**
+   * Name of the upright/frame system this rack belongs to. Two templates that declare
+   * the SAME system, at the same depth and upright thickness, may share a frame and join
+   * into one run even when their level layouts differ — which is how a real supplier's
+   * range works. Left undefined, a template joins only with its own kind.
+   */
+  frameSystem?: string
   /** Rack depth in meters. */
   depth: number
   /** Visual thickness of upright posts in meters. */

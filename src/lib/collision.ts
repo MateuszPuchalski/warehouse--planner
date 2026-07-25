@@ -1,6 +1,6 @@
 import type { AABB, AisleViolation, RackRotation, RackTemplate, WarehouseLayout } from '../types'
 import { aabbFor } from './rackGeometry'
-import { JOIN_TOL, runAxis, runCoords, structuralWidth } from './runs'
+import { JOIN_TOL, joinKeyOf, runAxis, runCoords, structuralWidth } from './runs'
 
 const EPS = 1e-3
 
@@ -74,7 +74,9 @@ export interface RackEntry {
 
 /** Everything needed to decide whether two overlapping racks are simply joined. */
 export interface JoinPose {
-  templateId: string
+  /** Frame-system identity (see `joinKeyOf`), not the template id: racks of one system
+   *  may join across different level layouts. */
+  joinKey: string
   rotation: RackRotation
   axis: 'x' | 'z'
   /** Structural span along the run axis (upright centre to upright centre). */
@@ -89,22 +91,28 @@ export function poseFor(
   gridZ: number,
   rotation: RackRotation,
   t: RackTemplate,
-  templateId: string,
   cellSize: number,
 ): JoinPose {
   const { along, cross } = runCoords(gridX, gridZ, rotation, cellSize)
   const half = structuralWidth(t) / 2
-  return { templateId, rotation, axis: runAxis(rotation), min: along - half, max: along + half, cross }
+  return {
+    joinKey: joinKeyOf(t),
+    rotation,
+    axis: runAxis(rotation),
+    min: along - half,
+    max: along + half,
+    cross,
+  }
 }
 
 /**
- * True when two overlapping racks are actually a legal shared-frame join: same
- * template, compatible facing, collinear, and their structural spans meeting exactly.
+ * True when two overlapping racks are actually a legal shared-frame join: the same frame
+ * system, compatible facing, collinear, and their structural spans meeting exactly.
  * At that spacing the end uprights coincide and the footprints overlap by precisely
  * one upright thickness — which `overlaps` would otherwise report as a clash.
  */
 export function isJoinedPair(a: JoinPose, b: JoinPose): boolean {
-  if (a.templateId !== b.templateId) return false
+  if (a.joinKey !== b.joinKey) return false
   if (a.rotation % 180 !== b.rotation % 180) return false
   if (a.axis !== b.axis) return false
   if (Math.abs(a.cross - b.cross) > JOIN_TOL) return false
@@ -139,7 +147,7 @@ export function rackIndex(layout: WarehouseLayout): RackEntry[] {
     out.push({
       id: r.id,
       aabb: aabbFor(r.gridX, r.gridZ, r.rotation, t, cell),
-      pose: poseFor(r.gridX, r.gridZ, r.rotation, t, r.templateId, cell),
+      pose: poseFor(r.gridX, r.gridZ, r.rotation, t, cell),
     })
   }
   rackIndexCache.set(layout, out)
@@ -199,7 +207,7 @@ export function validateGroupPlacement(layout: WarehouseLayout, moves: RackMove[
     const rotation = m.rotation ?? rack?.rotation ?? 0
     const cell = layout.floor.cellSize
     const aabb = aabbFor(m.gridX, m.gridZ, rotation, t, cell)
-    const pose = poseFor(m.gridX, m.gridZ, rotation, t, templateId, cell)
+    const pose = poseFor(m.gridX, m.gridZ, rotation, t, cell)
     const candidate = { aabb, pose }
     let ok = withinFloor(aabb, layout)
     if (ok) {
@@ -239,7 +247,7 @@ export function isPlacementValid(
   const cell = layout.floor.cellSize
   const aabb = aabbFor(gridX, gridZ, rotation, t, cell)
   if (!withinFloor(aabb, layout)) return false
-  const candidate = { aabb, pose: poseFor(gridX, gridZ, rotation, t, templateId, cell) }
+  const candidate = { aabb, pose: poseFor(gridX, gridZ, rotation, t, cell) }
   for (const other of rackIndex(layout)) {
     if (other.id === excludeId) continue
     if (blocks(candidate, other)) return false
