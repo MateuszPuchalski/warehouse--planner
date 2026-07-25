@@ -3,11 +3,21 @@ import { rackIndex } from './collision'
 import { runAxis, runCoords, structuralWidth } from './runs'
 
 /**
- * How far a rack may be pulled to snap onto a neighbour. Kept just under one cell so
- * the join never overrides an unambiguous grid intent, and it scales with fine grids.
+ * Magnet reach along the run, in meters. Deliberately NOT tied to the grid step: a
+ * cell-sized radius collapsed to a few centimetres on a fine grid (5–10 cm snap), so a
+ * rack dragged up to its neighbour almost never clicked into the run and you were left
+ * with a 1–2 cm gap and a doubled frame. A coarse grid still widens the magnet, and
+ * Ctrl suppresses joining whenever the plain grid position is what you actually want.
  */
-export function snapRadius(cellSize: number): number {
-  return Math.min(0.45, 0.9 * cellSize)
+const REACH_ALONG_M = 0.9
+/** Across the run the reach stays tight, so a rack is never yanked out of its row. */
+const REACH_CROSS_M = 0.35
+
+export function snapReach(cellSize: number): { along: number; cross: number } {
+  return {
+    along: Math.max(REACH_ALONG_M, 0.9 * cellSize),
+    cross: Math.max(REACH_CROSS_M, 0.9 * cellSize),
+  }
 }
 
 export interface JoinSnap {
@@ -22,28 +32,29 @@ export interface JoinSnap {
 }
 
 /**
- * Nearest position at which the candidate rack would share an upright frame with an
- * existing one. Only same-template, same-facing, collinear neighbours qualify, so the
- * snap can never produce a placement the collision rules would reject.
+ * Every position within magnet reach at which the candidate rack would share an upright
+ * frame with an existing one, nearest first. Only same-template, same-facing, collinear
+ * neighbours qualify, so a join can never produce a placement the collision rules would
+ * reject on its own — but the *nearest* join may still be taken by another rack, which
+ * is why this returns the whole ranked list for the caller to walk.
  */
-export function findJoinSnap(
+export function findJoinSnaps(
   layout: WarehouseLayout,
   templateId: string,
   rotation: RackRotation,
   worldX: number,
   worldZ: number,
   excludeIds?: Set<string>,
-): JoinSnap | null {
+): JoinSnap[] {
   const t = layout.templates[templateId]
-  if (!t) return null
+  if (!t) return []
   const cell = layout.floor.cellSize
-  const radius = snapRadius(cell)
+  const reach = snapReach(cell)
   const axis = runAxis(rotation)
   const half = structuralWidth(t) / 2
   const raw = runCoords(worldX / cell, worldZ / cell, rotation, cell)
 
-  let best: JoinSnap | null = null
-  let bestScore = Infinity
+  const found: { snap: JoinSnap; score: number }[] = []
 
   for (const entry of rackIndex(layout)) {
     if (excludeIds?.has(entry.id)) continue
@@ -52,28 +63,43 @@ export function findJoinSnap(
     if (p.rotation % 180 !== rotation % 180) continue
     if (p.axis !== axis) continue
     const crossDelta = Math.abs(p.cross - raw.cross)
-    if (crossDelta > radius) continue
+    if (crossDelta > reach.cross) continue
 
     // Attach on either side: our structural edge meets theirs.
     for (const along of [p.max + half, p.min - half]) {
       const alongDelta = Math.abs(along - raw.along)
-      if (alongDelta > radius) continue
-      const score = alongDelta + crossDelta
-      // Ties break on rack id so the ghost never flickers between equidistant neighbours.
-      if (score < bestScore || (score === bestScore && best && entry.id < best.neighbourId)) {
-        bestScore = score
-        const worldAlong = along
-        const worldCross = p.cross
-        best = {
+      if (alongDelta > reach.along) continue
+      // Normalized by each reach, since they differ: 10 cm off the row line is a much
+      // weaker match than 10 cm short along it.
+      const score = alongDelta / reach.along + crossDelta / reach.cross
+      const worldCross = p.cross
+      found.push({
+        score,
+        snap: {
           neighbourId: entry.id,
-          worldX: axis === 'x' ? worldAlong : worldCross,
-          worldZ: axis === 'x' ? worldCross : worldAlong,
+          worldX: axis === 'x' ? along : worldCross,
+          worldZ: axis === 'x' ? worldCross : along,
           axis,
           markerAlong: along === p.max + half ? p.max : p.min,
           markerCross: worldCross,
-        }
-      }
+        },
+      })
     }
   }
-  return best
+
+  // Ties break on rack id so the ghost never flickers between equidistant neighbours.
+  found.sort((a, b) => a.score - b.score || a.snap.neighbourId.localeCompare(b.snap.neighbourId))
+  return found.map((f) => f.snap)
+}
+
+/** Nearest join position, ignoring whether it is already occupied. */
+export function findJoinSnap(
+  layout: WarehouseLayout,
+  templateId: string,
+  rotation: RackRotation,
+  worldX: number,
+  worldZ: number,
+  excludeIds?: Set<string>,
+): JoinSnap | null {
+  return findJoinSnaps(layout, templateId, rotation, worldX, worldZ, excludeIds)[0] ?? null
 }

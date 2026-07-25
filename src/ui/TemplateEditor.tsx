@@ -3,7 +3,7 @@ import type { RackTemplate, SlotRole } from '../types'
 import { useWarehouseStore } from '../store/useWarehouseStore'
 import { useEditorStore } from '../store/useEditorStore'
 import { newId } from '../lib/ids'
-import { deriveLevelRole } from '../lib/rackGeometry'
+import { deriveLevelRole, getLocalSize } from '../lib/rackGeometry'
 import { ROLE_COLORS } from '../lib/colorModes'
 import { saveTemplateToLibrary } from '../lib/persistence'
 import { t as tNow, useT } from '../lib/i18n'
@@ -93,7 +93,7 @@ function RackPreview({
           <g key={l}>
             {/* height / level label in the gutter */}
             <text x={GUTTER - 6} y={yTop + levelH / 2 + 3} textAnchor="end" fontSize={9} fill="#8b93a3">
-              {t('tpl.levelTag', { n: heights.length - l })} · {h.toFixed(2)}
+              {t('tpl.levelTag', { n: l + 1 })} · {h.toFixed(2)}
             </text>
             {Array.from({ length: bays }, (_, b) => (
               <rect
@@ -150,9 +150,9 @@ export function TemplateEditor() {
       : {
           id: newId(),
           name: tNow('tpl.defaultName'),
-          bays: 3,
+          bays: 6,
           levels: 4,
-          bayWidth: 2.7,
+          bayWidth: 0.45,
           levelHeight: 1.5,
           depth: 1.1,
           uprightSize: 0.09,
@@ -179,7 +179,14 @@ export function TemplateEditor() {
 
   const effectiveLevels = variable ? heights.length : draft.levels
   const previewHeights = variable ? heights : Array.from({ length: draft.levels }, () => draft.levelHeight)
-  const totalHeight = previewHeights.reduce((a, b) => a + b, 0)
+  // Outer dimensions straight from the geometry helper the 3D scene uses, so the numbers
+  // shown here are the rack's real footprint and height (beam thickness included) rather
+  // than just the sum of the level heights.
+  const size = getLocalSize({
+    ...draft,
+    levels: effectiveLevels,
+    levelHeights: variable ? heights : undefined,
+  })
   const uniformRole: SlotRole = roles[0] ?? 'pick'
 
   const setLevelCount = (n: number) => {
@@ -274,7 +281,7 @@ export function TemplateEditor() {
               <RoleSwatch role="pick" label={t('tpl.role.pick')} />
             </div>
             <div className="mt-1 text-center text-[11px] text-muted">
-              {t('tpl.slots', { n: draft.bays * effectiveLevels })} · {t('tpl.totalHeight')} {totalHeight.toFixed(2)} m
+              {t('tpl.slots', { n: draft.bays * effectiveLevels })} · {t('tpl.totalHeight')} {size.h.toFixed(2)} m
             </div>
           </div>
 
@@ -292,8 +299,8 @@ export function TemplateEditor() {
                 onChange={(e) => setLevelCount(Number(e.target.value) || 1)} />
             </Row>
             <Row label={t('tpl.bayWidth')}>
-              <input type="number" className="field w-20 text-right" value={draft.bayWidth} min={0.1} max={6} step={0.05}
-                onChange={(e) => patch({ bayWidth: clampNum(Number(e.target.value) || 0.1, 0.1, 6) })} />
+              <input type="number" className="field w-20 text-right" value={draft.bayWidth} min={0.1} max={2} step={0.05}
+                onChange={(e) => patch({ bayWidth: clampNum(Number(e.target.value) || 0.1, 0.1, 2) })} />
             </Row>
 
             <label className="flex items-center gap-2 text-xs">
@@ -350,8 +357,16 @@ export function TemplateEditor() {
             )}
 
             <Row label={t('tpl.depth')}>
-              <input type="number" className="field w-20 text-right" value={draft.depth} min={0.4} max={3} step={0.1}
-                onChange={(e) => patch({ depth: clampNum(Number(e.target.value) || 0.4, 0.4, 3) })} />
+              <input type="number" className="field w-20 text-right" value={draft.depth} min={0.15} max={3} step={0.05}
+                onChange={(e) => patch({ depth: clampNum(Number(e.target.value) || 0.15, 0.15, 3) })} />
+            </Row>
+            <Row label={t('tpl.uprightSize')}>
+              <input type="number" className="field w-20 text-right" value={draft.uprightSize} min={0.02} max={0.2} step={0.01}
+                onChange={(e) => patch({ uprightSize: clampNum(Number(e.target.value) || 0.02, 0.02, 0.2) })} />
+            </Row>
+            <Row label={t('tpl.beamHeight')}>
+              <input type="number" className="field w-20 text-right" value={draft.beamHeight} min={0.02} max={0.3} step={0.01}
+                onChange={(e) => patch({ beamHeight: clampNum(Number(e.target.value) || 0.02, 0.02, 0.3) })} />
             </Row>
             <Row label={t('tpl.defaultWeight')}>
               <input type="number" className="field w-20 text-right" value={draft.defaultSlot.maxWeightKg} min={0} step={50}
@@ -371,7 +386,7 @@ export function TemplateEditor() {
             </Row>
 
             <div className="text-[11px] text-muted">
-              {(draft.bays * draft.bayWidth + draft.uprightSize).toFixed(2)} × {totalHeight.toFixed(2)} × {draft.depth.toFixed(2)} m
+              {size.w.toFixed(2)} × {size.h.toFixed(2)} × {size.d.toFixed(2)} m
               {existing && usedBy > 0 && <span className="text-warn"> · {t('tpl.affects', { n: usedBy })}</span>}
             </div>
           </div>
