@@ -11,6 +11,10 @@ import { useT } from '../lib/i18n'
 import { RackFrame } from './RackFrame'
 import { ghostValidMat, ghostInvalidMat } from './materials'
 
+/** Just below the measure overlay, above the zone outlines. */
+const GUIDE_Y = 0.06
+const GUIDE_COLOR = '#c084fc'
+
 /** Translucent preview while placing or moving a rack, with aisle distance guides. */
 export function GhostRack() {
   const ghost = useEditorStore((s) => s.ghost)
@@ -93,6 +97,32 @@ export function GhostRack() {
           </Html>
         </group>
       )}
+
+      {/* Alignment guides: thin lines showing which edge or centre line the rack locked
+          onto. Centre lines are dashed so they read differently from edge lines. */}
+      {ghost.guides?.map((g, i) => (
+        <Line
+          key={`g${i}`}
+          points={
+            g.axis === 'x'
+              ? [
+                  [g.at, GUIDE_Y, g.from],
+                  [g.at, GUIDE_Y, g.to],
+                ]
+              : [
+                  [g.from, GUIDE_Y, g.at],
+                  [g.to, GUIDE_Y, g.at],
+                ]
+          }
+          color={GUIDE_COLOR}
+          lineWidth={1.2}
+          dashed={g.kind === 'center'}
+          dashSize={0.16}
+          gapSize={0.12}
+          transparent
+          opacity={0.9}
+        />
+      ))}
 
       {lines.map((l, i) => {
         const mid: [number, number, number] = [

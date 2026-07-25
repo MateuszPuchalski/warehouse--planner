@@ -2,6 +2,7 @@ import type { GhostState, GroupGhostState, RackRotation, WallDraft, ZoneDraft } 
 import { useWarehouseStore, undo, redo, markHistoryBoundary } from '../store/useWarehouseStore'
 import { useEditorStore } from '../store/useEditorStore'
 import { clampGridCenter, clampGridFree, gridToWorld, worldToGrid } from './grid'
+import { findAlignSnap } from './alignSnap'
 import { findJoinSnaps } from './joinSnap'
 import { JOIN_TOL } from './runs'
 import { getFootprint } from './rackGeometry'
@@ -16,8 +17,9 @@ import { t } from './i18n'
  * Snap a candidate footprint to the grid, clamp it to the floor and check validity.
  *
  * A rack dropped near an aligned neighbour first tries to JOIN it — sharing the
- * upright frame, which needs a fractional (un-rounded) centre — and only falls back
- * to plain grid snapping when no join is in reach or the caller disables it.
+ * upright frame, which needs a fractional (un-rounded) centre. Failing that it tries to
+ * line up with a neighbour's edge or centre line, and only then falls back to plain grid
+ * snapping. `opts.snap === false` (Ctrl) skips both and gives you the raw grid.
  */
 export function computeGhost(
   templateId: string,
@@ -73,6 +75,31 @@ export function computeGhost(
   const gridX = clampGridCenter(worldX, w, layout.floor.widthM, cell)
   const gridZ = clampGridCenter(worldZ, d, layout.floor.depthM, cell)
   const valid = isPlacementValid(layout, templateId, gridX, gridZ, rotation, excludeId)
+
+  if (opts?.snap !== false) {
+    // No frame to share, but there may be an edge or centre line to line up with. Each
+    // axis snaps on its own; an axis with nothing in reach keeps its grid position.
+    const al = findAlignSnap(
+      layout,
+      templateId,
+      rotation,
+      worldX,
+      worldZ,
+      excludeId ? new Set([excludeId]) : undefined,
+    )
+    if (al) {
+      const ax = al.guides.some((g) => g.axis === 'x')
+      const az = al.guides.some((g) => g.axis === 'z')
+      const agX = ax ? clampGridFree(al.worldX, w, layout.floor.widthM, cell) : gridX
+      const agZ = az ? clampGridFree(al.worldZ, d, layout.floor.depthM, cell) : gridZ
+      const alignValid = isPlacementValid(layout, templateId, agX, agZ, rotation, excludeId)
+      // Never trade a placeable grid position for an aligned one that collides.
+      if (alignValid || !valid) {
+        return { gridX: agX, gridZ: agZ, rotation, valid: alignValid, guides: al.guides }
+      }
+    }
+  }
+
   return { gridX, gridZ, rotation, valid }
 }
 

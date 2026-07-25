@@ -337,14 +337,18 @@ export async function importLayoutFile(file: File): Promise<WarehouseLayout> {
 
 // ---------- Seed data ----------
 
+/**
+ * Generic starter templates for a blank warehouse, sized in COLUMNS like every other
+ * template: a 270 cm frame is 6 × 45 cm, and a pallet spans two columns.
+ */
 export function seedTemplates(): Record<string, RackTemplate> {
   const templates: RackTemplate[] = [
     {
       id: 'tpl-standard',
-      name: 'Standard pallet 3×4',
-      bays: 3,
+      name: 'Standard pallet 6×4',
+      bays: 6,
       levels: 4,
-      bayWidth: 2.7,
+      bayWidth: 0.45,
       levelHeight: 1.5,
       depth: 1.1,
       uprightSize: 0.09,
@@ -353,10 +357,10 @@ export function seedTemplates(): Record<string, RackTemplate> {
     },
     {
       id: 'tpl-widespan',
-      name: 'Wide-span 4×3',
-      bays: 4,
+      name: 'Wide-span 6×3',
+      bays: 6,
       levels: 3,
-      bayWidth: 3.3,
+      bayWidth: 0.55,
       levelHeight: 2,
       depth: 1.2,
       uprightSize: 0.1,
@@ -365,10 +369,10 @@ export function seedTemplates(): Record<string, RackTemplate> {
     },
     {
       id: 'tpl-highbay',
-      name: 'High-bay 2×6',
-      bays: 2,
+      name: 'High-bay 6×6',
+      bays: 6,
       levels: 6,
-      bayWidth: 2.7,
+      bayWidth: 0.45,
       levelHeight: 1.4,
       depth: 1.1,
       uprightSize: 0.09,

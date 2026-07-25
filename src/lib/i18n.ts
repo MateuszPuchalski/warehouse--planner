@@ -312,6 +312,8 @@ const en = {
   'tpl.preview': 'Preview',
   'tpl.totalHeight': 'Total height',
   'tpl.depth': 'Depth (m)',
+  'tpl.uprightSize': 'Upright size (m)',
+  'tpl.beamHeight': 'Beam height (m)',
   'tpl.defaultWeight': 'Default max weight (kg)',
   'tpl.carrier': 'Carrier',
   'tpl.carrier.auto': 'Auto (by depth)',
@@ -357,7 +359,7 @@ const en = {
   'sb.srcBridge': 'bridge',
   'sb.srcFile': 'file',
   'sb.hints':
-    'V select · P place · W wall · Z zone · R rotate · X delete · Shift+drag box-select · Arrows nudge · Ctrl+D duplicate · Alt+drag copy · Ctrl no join · Ctrl+Z undo · Esc cancel',
+    'V select · P place · W wall · Z zone · R rotate · X delete · Shift+drag box-select · Arrows nudge · Ctrl+D duplicate · Alt+drag copy · Ctrl no snap · Ctrl+Z undo · Esc cancel',
 
   'join.badge': 'Joined',
   'rack.posX': 'X',
@@ -693,6 +695,8 @@ const pl: Record<TranslationKey, string> = {
   'tpl.preview': 'Podgląd',
   'tpl.totalHeight': 'Całkowita wysokość',
   'tpl.depth': 'Głębokość (m)',
+  'tpl.uprightSize': 'Grubość ramy (m)',
+  'tpl.beamHeight': 'Wysokość belki (m)',
   'tpl.defaultWeight': 'Domyślna maks. waga (kg)',
   'tpl.carrier': 'Nośnik',
   'tpl.carrier.auto': 'Auto (wg głębokości)',
@@ -738,7 +742,7 @@ const pl: Record<TranslationKey, string> = {
   'sb.srcBridge': 'most',
   'sb.srcFile': 'plik',
   'sb.hints':
-    'V zaznaczanie · P stawianie · W ściana · Z strefa · R obrót · X usuwanie · Shift+przeciągnij zaznaczanie · Strzałki przesuwanie · Ctrl+D duplikat · Alt+przeciągnij kopia · Ctrl bez łączenia · Ctrl+Z cofnij · Esc anuluj',
+    'V zaznaczanie · P stawianie · W ściana · Z strefa · R obrót · X usuwanie · Shift+przeciągnij zaznaczanie · Strzałki przesuwanie · Ctrl+D duplikat · Alt+przeciągnij kopia · Ctrl bez przyciągania · Ctrl+Z cofnij · Esc anuluj',
 
   'join.badge': 'Połączone',
   'rack.posX': 'X',

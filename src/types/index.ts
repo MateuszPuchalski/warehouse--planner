@@ -207,6 +207,19 @@ export interface AisleViolation {
   zone: AABB
 }
 
+/** One alignment line the ghost snapped onto, drawn on the floor while dragging. */
+export interface AlignGuide {
+  /** Axis the snap acted on: 'x' is a line at constant x, running along z. */
+  axis: 'x' | 'z'
+  /** World coordinate of the line. */
+  at: number
+  /** Extent of the drawn line along the other axis. */
+  from: number
+  to: number
+  /** Whether the line is a footprint edge or a centre line. */
+  kind: 'edge' | 'center'
+}
+
 export interface GhostState {
   gridX: number
   gridZ: number
@@ -219,6 +232,8 @@ export interface GhostState {
     markerCross: number
     axis: 'x' | 'z'
   }
+  /** Alignment lines this position snapped onto (never set together with `join`). */
+  guides?: AlignGuide[]
 }
 
 /** One rack's pose inside a group move / array preview. */
