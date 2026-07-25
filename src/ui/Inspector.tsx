@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import type { RackRotation, SlotStatus, WallOpening, ZoneKind } from '../types'
 import { useWarehouseStore } from '../store/useWarehouseStore'
 import { useEditorStore } from '../store/useEditorStore'
+import { usePanelStore } from '../store/usePanelStore'
 import { countOverVolume, effectiveVolume, parseSlotKey, rackStats, resolveSlot, slotVolumeM3, stockVolumeM3 } from '../lib/rackGeometry'
 import {
   alignSelection,
@@ -752,8 +753,17 @@ export function Inspector() {
   const selectedRackId = useEditorStore((s) => s.selectedRackId)
   const selectedWallId = useEditorStore((s) => s.selectedWallId)
   const selectedZoneId = useEditorStore((s) => s.selectedZoneId)
+  const panelWidth = usePanelStore((s) => s.rightWidth)
+  const collapsed = usePanelStore((s) => s.rightCollapsed)
+
+  // Collapsed renders nothing at zero width, so `overflow-y-auto` can't show a scrollbar.
+  if (collapsed) return <aside className="w-0 shrink-0 overflow-hidden border-l border-border bg-panel" />
+
   return (
-    <aside className="w-72 shrink-0 overflow-y-auto border-l border-border bg-panel p-3">
+    <aside
+      className="shrink-0 overflow-y-auto border-l border-border bg-panel p-3"
+      style={{ width: panelWidth }}
+    >
       {multiCount > 1 ? (
         <MultiRackPanel />
       ) : selectedRackId ? (

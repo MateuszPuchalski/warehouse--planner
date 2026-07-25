@@ -2,6 +2,7 @@ import { useState } from 'react'
 import type { EditorMode } from '../types'
 import { useWarehouseStore } from '../store/useWarehouseStore'
 import { useEditorStore } from '../store/useEditorStore'
+import { usePanelStore } from '../store/usePanelStore'
 import { loadTemplateLibrary } from '../lib/persistence'
 import { useT, type TranslationKey } from '../lib/i18n'
 
@@ -26,9 +27,17 @@ export function Toolbar() {
 
   const [libOpen, setLibOpen] = useState(false)
   const library = libOpen ? loadTemplateLibrary() : {}
+  const width = usePanelStore((s) => s.leftWidth)
+  const collapsed = usePanelStore((s) => s.leftCollapsed)
+
+  // Collapsed renders nothing at zero width, so `overflow-y-auto` can't show a scrollbar.
+  if (collapsed) return <aside className="w-0 shrink-0 overflow-hidden border-r border-border bg-panel" />
 
   return (
-    <aside className="flex w-52 shrink-0 flex-col gap-3 overflow-y-auto border-r border-border bg-panel p-2">
+    <aside
+      className="flex shrink-0 flex-col gap-3 overflow-y-auto border-r border-border bg-panel p-2"
+      style={{ width }}
+    >
       <div>
         <div className="panel-title mb-1.5 px-1">{t('tool.mode')}</div>
         <div className="grid grid-cols-2 gap-1">

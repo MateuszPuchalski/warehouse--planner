@@ -28,6 +28,8 @@ import { Insights } from './ui/Insights'
 import { HomeScreen } from './ui/HomeScreen'
 import { BridgeSync } from './ui/BridgeSync'
 import { MarqueeBox } from './ui/MarqueeBox'
+import { ResizeHandle } from './ui/ResizeHandle'
+import { usePanelStore } from './store/usePanelStore'
 
 function Toast() {
   const toast = useEditorStore((s) => s.toast)
@@ -72,6 +74,7 @@ export default function App() {
   const showInsights = useEditorStore((s) => s.showInsights)
   const view = useEditorStore((s) => s.view)
   const lang = useI18nStore((s) => s.lang)
+  const resizing = usePanelStore((s) => s.resizing)
 
   // Keep the document language and title in sync with the UI language.
   useEffect(() => {
@@ -189,9 +192,12 @@ export default function App() {
       <TopBar />
       <div className="flex min-h-0 flex-1">
         <Toolbar />
-        <main className="relative min-w-0 flex-1">
+        <ResizeHandle side="left" />
+        {/* Ignore pointer events mid-resize, or a move across the canvas would drag the ghost. */}
+        <main className={`relative min-w-0 flex-1 ${resizing ? 'pointer-events-none' : ''}`}>
           <WarehouseCanvas />
         </main>
+        <ResizeHandle side="right" />
         <Inspector />
       </div>
       <StatusBar />
