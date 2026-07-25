@@ -24,6 +24,8 @@ export function TopBar() {
   const setShowPickPath = useEditorStore((s) => s.setShowPickPath)
   const showMeasures = useEditorStore((s) => s.showMeasures)
   const setShowMeasures = useEditorStore((s) => s.setShowMeasures)
+  const showRackCodes = useEditorStore((s) => s.showRackCodes)
+  const setShowRackCodes = useEditorStore((s) => s.setShowRackCodes)
   const setView = useEditorStore((s) => s.setView)
   const hasStock = useStockStore((s) => s.items.length > 0)
   const hasBridge = useStockStore((s) => s.bridgeUrl.trim().length > 0)
@@ -67,11 +69,13 @@ export function TopBar() {
       <input
         value={layoutName}
         onChange={(e) => setLayoutName(e.target.value)}
-        className="field max-w-52"
+        className="field max-w-52 min-w-24"
         aria-label={t('top.layoutName')}
       />
 
-      <div className="ml-auto flex items-center gap-1.5">
+      {/* The toolset outgrew 1280 px, so the group scrolls instead of clipping the last
+          controls (the language selector used to fall off the edge). */}
+      <div className="ml-auto flex min-w-0 items-center gap-1.5 overflow-x-auto [&>*]:shrink-0">
         <button className="btn" onClick={undo} disabled={!canUndo} title={t('top.undoTip')}>
           ↩ {t('top.undo')}
         </button>
@@ -134,6 +138,13 @@ export function TopBar() {
           title={t('top.measureTip')}
         >
           {t('top.measure')}
+        </button>
+        <button
+          className={`btn ${showRackCodes ? 'btn-accent' : ''}`}
+          onClick={() => setShowRackCodes(!showRackCodes)}
+          title={t('top.codesTip')}
+        >
+          {t('top.codes')}
         </button>
         <button
           className={`btn ${showPickPath ? 'btn-accent' : ''}`}

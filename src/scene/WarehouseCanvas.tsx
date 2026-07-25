@@ -2,6 +2,7 @@ import { Canvas } from '@react-three/fiber'
 import { OrbitControls, Stats } from '@react-three/drei'
 import { Floor } from './Floor'
 import { Racks } from './Racks'
+import { RackLabels } from './RackLabels'
 import { GhostRack } from './GhostRack'
 import { GroupGhost } from './GroupGhost'
 import { AisleGuides } from './AisleGuides'
@@ -54,6 +55,7 @@ export function WarehouseCanvas() {
       <PickPathOverlay />
       <MeasureOverlay />
       <Racks />
+      <RackLabels />
       <GhostRack />
       <GroupGhost />
       <WallGhost />

@@ -8,6 +8,15 @@ export function rackNoOf(code: string): number | null {
   return m ? Number(m[1]) : null
 }
 
+/**
+ * Whether a rack can appear in the route and be addressed from the ERP: it needs a code
+ * shaped like "A01". Single source of truth so the route and the floor labels agree on
+ * what "uncoded" means.
+ */
+export function isAddressable<T extends { code?: string }>(rack: T): rack is T & { code: string } {
+  return !!rack.code && rackNoOf(rack.code) !== null
+}
+
 export interface PickStop {
   rackId: string
   code: string
@@ -59,9 +68,8 @@ export function pickRoute(layout: WarehouseLayout): PickStop[] {
   // Group coded racks by line letter.
   const byLine = new Map<string, { rackId: string; code: string; no: number }[]>()
   for (const rack of Object.values(layout.racks)) {
-    if (!rack.code) continue
-    const no = rackNoOf(rack.code)
-    if (no === null) continue
+    if (!isAddressable(rack)) continue
+    const no = rackNoOf(rack.code)!
     const line = lineOf(rack.code)
     const entry = { rackId: rack.id, code: rack.code, no }
     const list = byLine.get(line)
@@ -105,6 +113,6 @@ export function pickOrder(layout: WarehouseLayout): Map<string, number> {
 /** Racks left out of the sequence because they carry no usable ERP code. */
 export function uncodedRackIds(layout: WarehouseLayout): string[] {
   return Object.values(layout.racks)
-    .filter((r) => !r.code || rackNoOf(r.code) === null)
+    .filter((r) => !isAddressable(r))
     .map((r) => r.id)
 }

@@ -32,9 +32,17 @@ const en = {
   'top.measureTip': 'Show floor dimensions: hall size, aisle widths and clearances',
   'top.pickPath': 'Pick route',
   'top.pickPathTip': 'Show the picking walk order on the floor',
+  'top.codes': 'Codes',
+  'top.codesTip': 'Label every rack with its code',
   'pick.serpentine': 'Serpentine pick order',
   'pick.serpentineTip': 'Walk every other code line back the other way',
   'pick.uncoded': '{n} racks have no code — outside the route',
+  'pick.routeLength': 'Route length: {m} m',
+  'pick.legStraight': 'No clear walkway — straight line',
+  'pick.excluded': 'no code',
+  'pick.start': 'START',
+  'pick.end': 'END',
+  'rack.noCode': 'no code',
   'top.home': 'Home screen',
   'home.title': 'Choose a warehouse plan or start a new one.',
   'home.new': '+ New warehouse',
@@ -95,6 +103,7 @@ const en = {
   'toast.cannotPlace': 'Cannot place here — overlaps a rack or leaves the floor',
   'toast.cannotMove': 'Cannot move here — overlaps a rack or leaves the floor',
   'toast.cannotRotate': 'Cannot rotate — it would overlap or leave the floor',
+  'toast.cannotFlip': 'Cannot flip — it would overlap or leave the floor',
   'toast.rotateOverlap': 'Warning: rotated rack now overlaps or leaves the floor',
   'toast.dupNoRoom': 'No room for a duplicate nearby',
   'toast.arrayPartial': 'Placed {placed}, {skipped} did not fit',
@@ -260,6 +269,9 @@ const en = {
   'rack.overVolume': '{n} over volume capacity',
   'rack.rotate': '⟳ Rotate',
   'rack.rotateTip': 'Rotate 90° (R)',
+  'rack.flip': '⇄ Flip',
+  'rack.flipTip': 'Turn the rack around 180° (F) — reverses the column order',
+  'rack.flipStockNote': 'Column 1 moves to the other end; slot addresses stay as they are.',
   'rack.delete': '✕ Delete',
   'rack.deleteTip': 'Delete (Del)',
   'rack.slotsTitle': 'Slots — click to edit',
@@ -345,6 +357,7 @@ const en = {
   'preset.note':
     'Presets are stored in this browser. Loading a preset replaces the current layout (undoable with Ctrl+Z). Use Export/Import in the top bar to share layouts as files.',
 
+  'sb.route': 'Route {m} m · {n} stops',
   'sb.counts': '{racks} racks · {slots} slots',
   'sb.aislesOk': '✓ aisles OK',
   'sb.warnings': '⚠ aisle warnings: {n}',
@@ -362,7 +375,7 @@ const en = {
   'sb.srcBridge': 'bridge',
   'sb.srcFile': 'file',
   'sb.hints':
-    'V select · P place · W wall · Z zone · R rotate · X delete · Shift+drag box-select · Arrows nudge · Ctrl+D duplicate · Alt+drag copy · Ctrl no snap · Ctrl+Z undo · Esc cancel',
+    'V select · P place · W wall · Z zone · R rotate · F flip · X delete · Shift+drag box-select · Arrows nudge · Ctrl+D duplicate · Alt+drag copy · Ctrl no snap · Ctrl+Z undo · Esc cancel',
 
   'join.badge': 'Joined',
   'rack.posX': 'X',
@@ -389,6 +402,7 @@ const en = {
   'multi.distributeZ': 'Distribute Z',
   'multi.duplicate': 'Duplicate',
   'multi.rotate': 'Rotate all',
+  'multi.flip': 'Flip all',
   'multi.delete': 'Delete {n}',
 }
 
@@ -416,11 +430,19 @@ const pl: Record<TranslationKey, string> = {
   'panel.expandRight': 'Pokaż inspektora',
   'top.measure': 'Wymiary',
   'top.measureTip': 'Pokaż wymiary na podłodze: rozmiar hali, szerokości alejek i odstępy',
+  'top.codes': 'Kody',
+  'top.codesTip': 'Podpisz każdy regał jego kodem',
   'top.pickPath': 'Trasa kompletacji',
   'top.pickPathTip': 'Pokaż kolejność obchodu na podłodze',
   'pick.serpentine': 'Kolejność wężykiem',
   'pick.serpentineTip': 'Co druga linia kodów obchodzona w przeciwną stronę',
   'pick.uncoded': 'Regały bez kodu: {n} — poza trasą',
+  'pick.routeLength': 'Długość trasy: {m} m',
+  'pick.legStraight': 'Brak wolnego przejścia — odcinek w linii prostej',
+  'pick.excluded': 'bez kodu',
+  'pick.start': 'START',
+  'pick.end': 'KONIEC',
+  'rack.noCode': 'bez kodu',
   'top.home': 'Ekran startowy',
   'home.title': 'Wybierz plan magazynu lub zacznij nowy.',
   'home.new': '+ Nowy magazyn',
@@ -481,6 +503,7 @@ const pl: Record<TranslationKey, string> = {
   'toast.cannotPlace': 'Nie można postawić — koliduje z regałem lub wystaje poza halę',
   'toast.cannotMove': 'Nie można przenieść — koliduje z regałem lub wystaje poza halę',
   'toast.cannotRotate': 'Nie można obrócić — kolizja lub wyjście poza halę',
+  'toast.cannotFlip': 'Nie można odwrócić — kolizja lub wyjście poza halę',
   'toast.rotateOverlap': 'Uwaga: po obrocie regał koliduje lub wystaje poza halę',
   'toast.dupNoRoom': 'Brak miejsca na duplikat obok',
   'toast.arrayPartial': 'Ustawiono {placed}, {skipped} się nie zmieściło',
@@ -646,6 +669,9 @@ const pl: Record<TranslationKey, string> = {
   'rack.overVolume': 'przekracza pojemność: {n}',
   'rack.rotate': '⟳ Obróć',
   'rack.rotateTip': 'Obróć o 90° (R)',
+  'rack.flip': '⇄ Odwróć',
+  'rack.flipTip': 'Odwróć regał o 180° (F) — odwraca kolejność kolumn',
+  'rack.flipStockNote': 'Kolumna 1 przechodzi na drugi koniec; adresy slotów zostają bez zmian.',
   'rack.delete': '✕ Usuń',
   'rack.deleteTip': 'Usuń (Del)',
   'rack.slotsTitle': 'Sloty — kliknij, aby edytować',
@@ -731,6 +757,7 @@ const pl: Record<TranslationKey, string> = {
   'preset.note':
     'Presety są zapisywane w tej przeglądarce. Wczytanie presetu zastępuje bieżący układ (można cofnąć Ctrl+Z). Użyj Eksportu/Importu w górnym pasku, aby udostępniać układy jako pliki.',
 
+  'sb.route': 'Trasa {m} m · przystanków: {n}',
   'sb.counts': 'regały: {racks} · sloty: {slots}',
   'sb.aislesOk': '✓ alejki OK',
   'sb.warnings': '⚠ ostrzeżenia alejek: {n}',
@@ -748,7 +775,7 @@ const pl: Record<TranslationKey, string> = {
   'sb.srcBridge': 'most',
   'sb.srcFile': 'plik',
   'sb.hints':
-    'V zaznaczanie · P stawianie · W ściana · Z strefa · R obrót · X usuwanie · Shift+przeciągnij zaznaczanie · Strzałki przesuwanie · Ctrl+D duplikat · Alt+przeciągnij kopia · Ctrl bez przyciągania · Ctrl+Z cofnij · Esc anuluj',
+    'V zaznaczanie · P stawianie · W ściana · Z strefa · R obrót · F odwrócenie · X usuwanie · Shift+przeciągnij zaznaczanie · Strzałki przesuwanie · Ctrl+D duplikat · Alt+przeciągnij kopia · Ctrl bez przyciągania · Ctrl+Z cofnij · Esc anuluj',
 
   'join.badge': 'Połączone',
   'rack.posX': 'X',
@@ -775,6 +802,7 @@ const pl: Record<TranslationKey, string> = {
   'multi.distributeZ': 'Rozłóż Z',
   'multi.duplicate': 'Duplikuj',
   'multi.rotate': 'Obróć wszystkie',
+  'multi.flip': 'Odwróć wszystkie',
   'multi.delete': 'Usuń ({n})',
 }
 

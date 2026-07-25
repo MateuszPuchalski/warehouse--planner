@@ -5,7 +5,7 @@ import { clampGridCenter, clampGridFree, gridToWorld, worldToGrid } from './grid
 import { findAlignSnap } from './alignSnap'
 import { findJoinSnaps } from './joinSnap'
 import { JOIN_TOL } from './runs'
-import { getFootprint } from './rackGeometry'
+import { aabbFor, getFootprint } from './rackGeometry'
 import { isPlacementValid, rackIndex, validateGroupPlacement, type RackMove } from './collision'
 import { alignMoves, distributeMoves, packRunMoves, type AlignMode } from './align'
 import { buildArraySpecs, type ArraySpec } from './arrayTool'
@@ -384,6 +384,77 @@ export function rotateSelection(): void {
   }
   markHistoryBoundary()
   rotateRacks(rots)
+}
+
+/**
+ * Turn every selected rack around (+180°). Its own action rather than "press R twice",
+ * because R steps through 90°, where the footprint swaps and a rack joined into a run
+ * really does overlap its neighbour — that intermediate state is refused, so two presses
+ * can never get you here. A straight +180° is collision-neutral (the footprint is
+ * rotation-mod-180 and `isJoinedPair` compares `rotation % 180`), and it is the only way
+ * to reverse the column order, since column 0 always sits at the rack's local −X.
+ */
+export function flipSelection(): void {
+  const ed = useEditorStore.getState()
+  const { layout, rotateRacks } = useWarehouseStore.getState()
+  const rots = [...ed.selectedRackIds]
+    .map((id) => layout.racks[id])
+    .filter((r): r is NonNullable<typeof r> => !!r)
+    .map((r) => ({ id: r.id, rotation: ((r.rotation + 180) % 360) as RackRotation }))
+  if (rots.length === 0) return
+  /**
+   * Guard the *invariant* rather than re-validating the layout. A 180° turn leaves every
+   * footprint and every join pose untouched, so it cannot introduce a collision — whereas
+   * an all-or-nothing `validateGroupPlacement` over a big selection would refuse the flip
+   * because of some unrelated overlap that was already there (the built-in sample has a
+   * 2 cm one in row A), which is a false refusal on exactly the layouts that need fixing.
+   * If a future geometry change ever makes 180° non-neutral, this catches it instead.
+   */
+  const cell = layout.floor.cellSize
+  const neutral = rots.every((r) => {
+    const rack = layout.racks[r.id]
+    const tpl = layout.templates[rack.templateId]
+    if (!tpl) return false
+    const before = aabbFor(rack.gridX, rack.gridZ, rack.rotation, tpl, cell)
+    const after = aabbFor(rack.gridX, rack.gridZ, r.rotation, tpl, cell)
+    return (
+      Math.abs(before.minX - after.minX) < 1e-9 &&
+      Math.abs(before.maxX - after.maxX) < 1e-9 &&
+      Math.abs(before.minZ - after.minZ) < 1e-9 &&
+      Math.abs(before.maxZ - after.maxZ) < 1e-9
+    )
+  })
+  if (!neutral) {
+    ed.showToast(t('toast.cannotFlip'), 'error')
+    return
+  }
+  markHistoryBoundary()
+  // ONE store write: the history throttle drops updates inside its window, so flipping a
+  // whole run rack-by-rack would leave undo able to revert only the first.
+  rotateRacks(rots)
+}
+
+/** F key: flip the placement ghost, or the selection. */
+export function flipGhostOrSelection(): void {
+  const ed = useEditorStore.getState()
+  const { layout } = useWarehouseStore.getState()
+
+  if (ed.mode === 'place' && ed.ghost && ed.placingTemplateId) {
+    const rotation = ((ed.ghost.rotation + 180) % 360) as RackRotation
+    ed.setPlaceRotation(rotation)
+    const cell = layout.floor.cellSize
+    ed.setGhost(
+      computeGhost(
+        ed.placingTemplateId,
+        gridToWorld(ed.ghost.gridX, cell),
+        gridToWorld(ed.ghost.gridZ, cell),
+        rotation,
+      ),
+    )
+    return
+  }
+
+  if (ed.selectedRackIds.size > 0) flipSelection()
 }
 
 /** Commit the in-flight move ghost (single rack or group). Re-validates against the live layout. */
