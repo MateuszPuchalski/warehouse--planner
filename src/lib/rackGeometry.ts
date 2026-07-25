@@ -111,9 +111,13 @@ export interface FrameSkips {
  * Local-space transforms of every structural member of a rack. Computed once per
  * template (and per skip combination).
  *
- * In a joined run consecutive racks share one upright frame, so the downstream rack
- * omits its low-end pair via `skipStart`. Beams already span upright-centre to
- * upright-centre, so they meet exactly across the shared frame with no adjustment.
+ * Upright frames stand ONLY at the rack's two ends. The columns in between are a
+ * purely virtual subdivision used to address product locations (`A01-02-03` → column
+ * 02) — there is no steel between them, so the beams run the full length unbroken.
+ *
+ * In a joined run consecutive racks share one end frame, so the downstream rack omits
+ * its low-end pair via `skipStart`. Beams span upright-centre to upright-centre, so
+ * they meet exactly across the shared frame with no adjustment.
  */
 export function buildMembers(t: RackTemplate, skips: FrameSkips = {}): MemberSets {
   const W = t.bays * t.bayWidth
@@ -122,10 +126,10 @@ export function buildMembers(t: RackTemplate, skips: FrameSkips = {}): MemberSet
   const halfD = t.depth / 2 - t.uprightSize / 2
 
   const uprights: Member[] = []
-  for (let i = 0; i <= t.bays; i++) {
-    if (i === 0 && skips.skipStart) continue
-    if (i === t.bays && skips.skipEnd) continue
-    const x = -W / 2 + i * t.bayWidth
+  for (const end of [0, t.bays]) {
+    if (end === 0 && skips.skipStart) continue
+    if (end === t.bays && skips.skipEnd) continue
+    const x = -W / 2 + end * t.bayWidth
     for (const z of [-halfD, halfD]) {
       uprights.push({ pos: [x, H / 2, z], scale: [t.uprightSize, H, t.uprightSize] })
     }
