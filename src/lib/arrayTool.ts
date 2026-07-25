@@ -51,7 +51,7 @@ export function buildArraySpecs(
         const gridX = src.gridX + dx
         const gridZ = src.gridZ + dz
         const aabb = aabbFor(gridX, gridZ, src.rotation, template, cell)
-        const pose = poseFor(gridX, gridZ, src.rotation, template, src.templateId, cell)
+        const pose = poseFor(gridX, gridZ, src.rotation, template, cell)
         const candidate = { aabb, pose }
         const fits =
           validateGroupPlacement(layout, [

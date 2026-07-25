@@ -101,6 +101,8 @@ export function validateLayout(raw: unknown): WarehouseLayout {
       levelRoles = [...t.levelRoles]
     }
     const carrier = t.carrier && ['pallet', 'carton', 'bin'].includes(t.carrier) ? t.carrier : undefined
+    // Frame system is a free-form label; blank means "joins only with its own kind".
+    const frameSystem = typeof t.frameSystem === 'string' && t.frameSystem.trim() ? t.frameSystem.trim() : undefined
     templates[id] = {
       ...t,
       id,
@@ -108,6 +110,7 @@ export function validateLayout(raw: unknown): WarehouseLayout {
       ...(levelHeights ? { levelHeights } : { levelHeights: undefined }),
       ...(levelRoles ? { levelRoles } : { levelRoles: undefined }),
       ...(carrier ? { carrier } : { carrier: undefined }),
+      ...(frameSystem ? { frameSystem } : { frameSystem: undefined }),
     }
   }
 

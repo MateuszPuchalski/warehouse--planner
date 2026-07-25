@@ -21,6 +21,7 @@ import {
 import { uncodedRackIds } from '../lib/pickPath'
 import type { AlignMode } from '../lib/align'
 import type { ArraySpec } from '../lib/arrayTool'
+import { canJoin } from '../lib/runs'
 import { wallLengthM } from '../lib/walls'
 import { ZONE_KINDS, zoneColor, zoneRectM } from '../lib/zones'
 import { normalizeUserRackCode } from '../lib/locationCode'
@@ -706,11 +707,25 @@ function MultiRackPanel() {
     [ids, racks],
   )
   const mixed = new Set(selected.map((r) => r.templateId)).size > 1
+  // Different templates of ONE frame system still form a run, so "can be packed" is a
+  // compatibility question, not a same-template question.
+  const packable = useWarehouseStore((s) => {
+    const first = selected[0] ? s.layout.templates[selected[0].templateId] : undefined
+    if (!first || selected.length < 2) return false
+    const facing = selected[0].rotation % 180
+    return selected.every((r) => {
+      const t = s.layout.templates[r.templateId]
+      return !!t && canJoin(t, first) && r.rotation % 180 === facing
+    })
+  })
 
   return (
     <div className="flex flex-col gap-3">
       <div className="panel-title">{t('multi.title', { n: selected.length })}</div>
-      {mixed && <div className="text-[11px] text-muted">{t('multi.mixedTemplates')}</div>}
+      {/* Only a caveat when the mix actually limits what you can do: variants of one
+          frame system are a legitimate run, so saying "mixed" there would read as a
+          warning against something that now works. */}
+      {mixed && !packable && <div className="text-[11px] text-muted">{t('multi.mixedTemplates')}</div>}
 
       <div>
         <div className="panel-title mb-1.5">{t('multi.align')}</div>
@@ -734,7 +749,7 @@ function MultiRackPanel() {
         <button
           className="btn mt-1 w-full justify-center"
           title={t('multi.packRunHint')}
-          disabled={mixed}
+          disabled={!packable}
           onClick={packSelectionIntoRun}
         >
           {t('multi.packRun')}

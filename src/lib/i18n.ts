@@ -312,6 +312,9 @@ const en = {
   'tpl.preview': 'Preview',
   'tpl.totalHeight': 'Total height',
   'tpl.depth': 'Depth (m)',
+  'tpl.frameSystem': 'Frame system',
+  'tpl.frameSystemHint':
+    'Racks sharing a frame system name (at the same depth and upright size) join into one run even with different level layouts. Leave empty to join only with copies of this template.',
   'tpl.uprightSize': 'Upright size (m)',
   'tpl.beamHeight': 'Beam height (m)',
   'tpl.defaultWeight': 'Default max weight (kg)',
@@ -695,6 +698,9 @@ const pl: Record<TranslationKey, string> = {
   'tpl.preview': 'Podgląd',
   'tpl.totalHeight': 'Całkowita wysokość',
   'tpl.depth': 'Głębokość (m)',
+  'tpl.frameSystem': 'System ram',
+  'tpl.frameSystemHint':
+    'Regały z tą samą nazwą systemu ram (o tej samej głębokości i grubości ramy) łączą się w jeden rząd nawet przy różnym układzie poziomów. Puste = łączy się tylko z kopiami tego szablonu.',
   'tpl.uprightSize': 'Grubość ramy (m)',
   'tpl.beamHeight': 'Wysokość belki (m)',
   'tpl.defaultWeight': 'Domyślna maks. waga (kg)',

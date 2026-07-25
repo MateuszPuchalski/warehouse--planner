@@ -1,6 +1,6 @@
 import type { RackRotation, WarehouseLayout } from '../types'
 import { rackIndex } from './collision'
-import { runAxis, runCoords, structuralWidth } from './runs'
+import { joinKeyOf, runAxis, runCoords, structuralWidth } from './runs'
 
 /**
  * Magnet reach along the run, in meters. Deliberately NOT tied to the grid step: a
@@ -33,9 +33,10 @@ export interface JoinSnap {
 
 /**
  * Every position within magnet reach at which the candidate rack would share an upright
- * frame with an existing one, nearest first. Only same-template, same-facing, collinear
- * neighbours qualify, so a join can never produce a placement the collision rules would
- * reject on its own — but the *nearest* join may still be taken by another rack, which
+ * frame with an existing one, nearest first. Only neighbours of the same frame system,
+ * facing the same way and collinear qualify — so this accepts a sibling template with a
+ * different level layout, and a join can never produce a placement the collision rules
+ * would reject on its own — but the *nearest* join may still be taken by another rack, which
  * is why this returns the whole ranked list for the caller to walk.
  */
 export function findJoinSnaps(
@@ -51,6 +52,7 @@ export function findJoinSnaps(
   const cell = layout.floor.cellSize
   const reach = snapReach(cell)
   const axis = runAxis(rotation)
+  const key = joinKeyOf(t)
   const half = structuralWidth(t) / 2
   const raw = runCoords(worldX / cell, worldZ / cell, rotation, cell)
 
@@ -59,7 +61,7 @@ export function findJoinSnaps(
   for (const entry of rackIndex(layout)) {
     if (excludeIds?.has(entry.id)) continue
     const p = entry.pose
-    if (p.templateId !== templateId) continue
+    if (p.joinKey !== key) continue
     if (p.rotation % 180 !== rotation % 180) continue
     if (p.axis !== axis) continue
     const crossDelta = Math.abs(p.cross - raw.cross)

@@ -1,4 +1,5 @@
 import type { RackInstance, RackRotation, RackTemplate, WarehouseLayout } from '../types'
+import { getLevelOffsets } from './rackGeometry'
 
 /**
  * How close two structural spans must sit to count as joined, in meters. An order of
@@ -7,6 +8,28 @@ import type { RackInstance, RackRotation, RackTemplate, WarehouseLayout } from '
  * "genuinely overlapping".
  */
 export const JOIN_TOL = 0.005
+
+/**
+ * Identity of a rack's joining system. Templates sharing this key can share an upright
+ * frame, so they may sit in one run whatever their level layout is: same declared frame
+ * system, same depth, same upright thickness — the three things the shared post has to
+ * agree on. A template with no declared system falls back to its own id, which keeps the
+ * old "identical templates only" behaviour for everything that predates this.
+ */
+export function joinKeyOf(t: RackTemplate): string {
+  const sys = t.frameSystem?.trim()
+  return sys ? `sys:${sys}|${t.depth.toFixed(3)}|${t.uprightSize.toFixed(3)}` : `tpl:${t.id}`
+}
+
+/** Whether two templates may share an upright frame. */
+export function canJoin(a: RackTemplate, b: RackTemplate): boolean {
+  return joinKeyOf(a) === joinKeyOf(b)
+}
+
+/** Outer height of a rack: top of the highest level plus its beam. */
+export function frameHeightOf(t: RackTemplate): number {
+  return getLevelOffsets(t)[t.levels] + t.beamHeight
+}
 
 /** Structural width: upright centre to upright centre, i.e. the beam span. */
 export function structuralWidth(t: RackTemplate): number {
@@ -78,15 +101,16 @@ export function runIndex(layout: WarehouseLayout): Map<string, RunFlags> {
     if (!layout.templates[rack.templateId]) continue
     const { cross } = runCoords(rack.gridX, rack.gridZ, rack.rotation, cell)
     // 0°≡180° and 90°≡270° render identically, so they may share a run.
-    const key = `${rack.templateId}|${rack.rotation % 180}|${cross.toFixed(3)}`
+    const key = `${joinKeyOf(layout.templates[rack.templateId])}|${rack.rotation % 180}|${cross.toFixed(3)}`
     const list = buckets.get(key)
     if (list) list.push(rack)
     else buckets.set(key, [rack])
   }
 
   for (const [key, racks] of buckets) {
-    const tpl = layout.templates[racks[0].templateId]
-    const halfW = structuralWidth(tpl) / 2
+    // A run may now mix templates of one frame system, so width and height are per rack.
+    const halfW = (r: RackInstance) => structuralWidth(layout.templates[r.templateId]) / 2
+    const heightOf = (r: RackInstance) => frameHeightOf(layout.templates[r.templateId])
     const along = (r: RackInstance) => runCoords(r.gridX, r.gridZ, r.rotation, cell).along
     racks.sort((a, b) => along(a) - along(b))
 
@@ -94,17 +118,23 @@ export function runIndex(layout: WarehouseLayout): Map<string, RunFlags> {
     const flush = () => {
       if (chain.length === 0) return
       const runId = `${key}#${chain[0].id}`
+      // Each junction keeps exactly ONE post, and it has to be the TALLER of the two —
+      // otherwise a tall rack next to a short one would lose the upper part of its frame.
+      // Equal heights keep the old rule: the downstream rack drops its post.
+      const drop = chain.map(() => ({ low: false, high: false }))
+      for (let i = 1; i < chain.length; i++) {
+        if (heightOf(chain[i]) > heightOf(chain[i - 1]) + JOIN_TOL) drop[i - 1].high = true
+        else drop[i].low = true
+      }
       chain.forEach((rack, i) => {
-        // Exactly one rack of each junction drops its post: the downstream one drops
-        // the frame at its LOW-run end, expressed in the rack's own local terms.
-        const dropsLowEnd = i > 0
+        // Run-relative ends, expressed in the rack's own local terms.
         const lowEndIsLocalStart = localPlusIsPositiveRun(rack.rotation)
         out.set(rack.id, {
           runId,
           indexInRun: i,
           runLength: chain.length,
-          skipStart: dropsLowEnd && lowEndIsLocalStart,
-          skipEnd: dropsLowEnd && !lowEndIsLocalStart,
+          skipStart: lowEndIsLocalStart ? drop[i].low : drop[i].high,
+          skipEnd: lowEndIsLocalStart ? drop[i].high : drop[i].low,
         })
       })
       chain = []
@@ -113,7 +143,7 @@ export function runIndex(layout: WarehouseLayout): Map<string, RunFlags> {
     for (const rack of racks) {
       if (chain.length > 0) {
         const prev = chain[chain.length - 1]
-        const gap = along(rack) - halfW - (along(prev) + halfW)
+        const gap = along(rack) - halfW(rack) - (along(prev) + halfW(prev))
         // A real overlap deeper than tolerance is a defect, not a join — leave both
         // frames complete so it stays visible.
         if (Math.abs(gap) > JOIN_TOL) flush()

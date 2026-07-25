@@ -360,6 +360,15 @@ export function TemplateEditor() {
               <input type="number" className="field w-20 text-right" value={draft.depth} min={0.15} max={3} step={0.05}
                 onChange={(e) => patch({ depth: clampNum(Number(e.target.value) || 0.15, 0.15, 3) })} />
             </Row>
+            <Row label={t('tpl.frameSystem')}>
+              <input
+                className="field w-44"
+                value={draft.frameSystem ?? ''}
+                placeholder="—"
+                onChange={(e) => patch({ frameSystem: e.target.value.trim() ? e.target.value : undefined })}
+              />
+            </Row>
+            <div className="-mt-1 text-[10px] leading-snug text-muted">{t('tpl.frameSystemHint')}</div>
             <Row label={t('tpl.uprightSize')}>
               <input type="number" className="field w-20 text-right" value={draft.uprightSize} min={0.02} max={0.2} step={0.01}
                 onChange={(e) => patch({ uprightSize: clampNum(Number(e.target.value) || 0.02, 0.02, 0.2) })} />

@@ -27,10 +27,12 @@ import { makePerimeterWalls } from './walls'
  * them). Mecalux carries 110 cm deep picking places, SSI Schaefer 105 cm.
  */
 const PALLET_COLUMNS = { bays: 6, bayWidth: 0.45, uprightSize: 0.09, beamHeight: 0.12, carrier: 'pallet' as const }
-const MECALUX = { ...PALLET_COLUMNS, depth: 1.1 }
-const SCHAEFER = { ...PALLET_COLUMNS, depth: 1.05 }
-const SHELF = { depth: 0.6, uprightSize: 0.05, beamHeight: 0.04, carrier: 'carton' as const }
-const BIN = { uprightSize: 0.04, beamHeight: 0.025, carrier: 'bin' as const }
+// `frameSystem` is what lets the variants of one range stand in a single run and share
+// their end frames even though their level layouts differ (see `joinKeyOf`).
+const MECALUX = { ...PALLET_COLUMNS, depth: 1.1, frameSystem: 'mecalux-pallet-550' }
+const SCHAEFER = { ...PALLET_COLUMNS, depth: 1.05, frameSystem: 'ssi-pallet-350' }
+const SHELF = { depth: 0.6, uprightSize: 0.05, beamHeight: 0.04, carrier: 'carton' as const, frameSystem: 'mecalux-m7-300' }
+const BIN = { uprightSize: 0.04, beamHeight: 0.025, carrier: 'bin' as const, frameSystem: 'ktr-238' }
 
 type TplBase = {
   bays: number
@@ -39,6 +41,7 @@ type TplBase = {
   uprightSize: number
   beamHeight: number
   carrier: RackTemplate['carrier']
+  frameSystem?: string
 }
 
 /**
