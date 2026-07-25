@@ -6,6 +6,7 @@ import {
   deleteSelected,
   duplicateSelection,
   escapeAction,
+  flipGhostOrSelection,
   nudgeSelection,
   redo,
   rotateGhostOrSelection,
@@ -136,6 +137,9 @@ export default function App() {
           break
         case 'r':
           rotateGhostOrSelection()
+          break
+        case 'f':
+          flipGhostOrSelection()
           break
         case 'escape':
           escapeAction()

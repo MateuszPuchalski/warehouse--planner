@@ -48,6 +48,8 @@ export interface EditorState {
   showPickPath: boolean
   /** Draw floor dimensions: hall size and rack/wall clearances. */
   showMeasures: boolean
+  /** Label every rack with its ERP code. */
+  showRackCodes: boolean
   /** Slots highlighted as put-away suggestions, keyed `${rackId}:${bay}:${level}`. */
   suggestedSlots: Set<string>
   /** Slots highlighted by the SKU search, keyed `${rackId}:${bay}:${level}`. */
@@ -87,6 +89,7 @@ export interface EditorState {
   setShowInsights: (open: boolean) => void
   setShowPickPath: (open: boolean) => void
   setShowMeasures: (open: boolean) => void
+  setShowRackCodes: (open: boolean) => void
   setView: (view: AppView) => void
   setSuggestedSlots: (slots: Set<string>) => void
   setFoundSlots: (slots: Set<string>) => void
@@ -151,6 +154,9 @@ export const useEditorStore = create<EditorState>()((set, get) => ({
   showInsights: false,
   showPickPath: false,
   showMeasures: false,
+  // On by default — a permanent label that starts hidden is not permanent; the toggle
+  // exists to turn it off.
+  showRackCodes: true,
   suggestedSlots: new Set<string>(),
   foundSlots: new Set<string>(),
   editingTemplateId: null,
@@ -285,6 +291,7 @@ export const useEditorStore = create<EditorState>()((set, get) => ({
   setShowInsights: (showInsights) => set({ showInsights }),
   setShowPickPath: (showPickPath) => set({ showPickPath }),
   setShowMeasures: (showMeasures) => set({ showMeasures }),
+  setShowRackCodes: (showRackCodes) => set({ showRackCodes }),
   setView: (view) => set({ view }),
   setSuggestedSlots: (suggestedSlots) => set({ suggestedSlots }),
   setFoundSlots: (foundSlots) => set({ foundSlots }),

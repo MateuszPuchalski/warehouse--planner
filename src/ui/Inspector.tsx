@@ -9,6 +9,7 @@ import {
   applyArray,
   deleteSelected,
   distributeSelection,
+  flipSelection,
   packSelectionIntoRun,
   duplicateSelection,
   previewArray,
@@ -19,6 +20,7 @@ import {
   setRackRotationAbs,
 } from '../lib/editorActions'
 import { uncodedRackIds } from '../lib/pickPath'
+import { pickWalk } from '../lib/pickWalk'
 import type { AlignMode } from '../lib/align'
 import type { ArraySpec } from '../lib/arrayTool'
 import { canJoin } from '../lib/runs'
@@ -84,6 +86,12 @@ function FloorPanel() {
   const rackCount = useWarehouseStore((s) => Object.keys(s.layout.racks).length)
   const wallCount = useWarehouseStore((s) => Object.keys(s.layout.walls).length)
   const uncoded = useWarehouseStore((s) => uncodedRackIds(s.layout).length)
+  const showPickPath = useEditorStore((s) => s.showPickPath)
+  const routeLayout = useWarehouseStore((s) => s.layout)
+  const routeMeters = useMemo(
+    () => (showPickPath ? pickWalk(routeLayout).totalMeters : null),
+    [showPickPath, routeLayout],
+  )
   const t = useT()
 
   return (
@@ -120,6 +128,10 @@ function FloorPanel() {
         />
       </label>
       {uncoded > 0 && <div className="text-[11px] text-muted">{t('pick.uncoded', { n: uncoded })}</div>}
+      {/* Only computed while the overlay is on — see StatusBar for the same guard. */}
+      {routeMeters !== null && (
+        <div className="text-[11px] text-muted">{t('pick.routeLength', { m: routeMeters.toFixed(1) })}</div>
+      )}
 
       <button className="btn btn-danger mt-2 justify-center" onClick={clearRacks} disabled={rackCount === 0}>
         {t('floor.clear', { n: rackCount })}
@@ -579,10 +591,17 @@ function RackPanel({ rackId }: { rackId: string }) {
         <button className="btn flex-1 justify-center" onClick={rotateGhostOrSelection} title={t('rack.rotateTip')}>
           {t('rack.rotate')}
         </button>
+        <button className="btn flex-1 justify-center" onClick={flipSelection} title={t('rack.flipTip')}>
+          {t('rack.flip')}
+        </button>
         <button className="btn btn-danger flex-1 justify-center" onClick={() => requestDelete(rackId)} title={t('rack.deleteTip')}>
           {t('rack.delete')}
         </button>
       </div>
+      {/* Said before the click, not after: a flip moves the physical shelf a slot address
+          points at, which is the fix when the rack is turned the wrong way and a hazard
+          when it isn't. */}
+      <div className="-mt-1 text-[11px] leading-snug text-muted">{t('rack.flipStockNote')}</div>
 
       <ArraySection seedTemplateId={rack.templateId} />
 
@@ -762,6 +781,9 @@ function MultiRackPanel() {
         </button>
         <button className="btn flex-1 justify-center" onClick={rotateSelection}>
           {t('multi.rotate')}
+        </button>
+        <button className="btn flex-1 justify-center" onClick={flipSelection} title={t('rack.flipTip')}>
+          {t('multi.flip')}
         </button>
       </div>
 

@@ -3,6 +3,7 @@ import { useWarehouseStore } from '../store/useWarehouseStore'
 import { useEditorStore } from '../store/useEditorStore'
 import { useStockStore } from '../store/useStockStore'
 import { validateAislesCached } from '../lib/collision'
+import { pickWalk } from '../lib/pickWalk'
 import { countOverVolume } from '../lib/rackGeometry'
 import { useT, type TranslationKey } from '../lib/i18n'
 
@@ -15,10 +16,15 @@ export function StatusBar() {
   const syncError = useStockStore((s) => s.syncError)
   const pointer = useEditorStore((s) => s.pointer)
   const mode = useEditorStore((s) => s.mode)
+  const showPickPath = useEditorStore((s) => s.showPickPath)
   const selectRack = useEditorStore((s) => s.selectRack)
   const t = useT()
 
   const violations = useMemo(() => validateAislesCached(layout), [layout])
+  // Only while the route is on: building the walk grid for someone who never opens the
+  // overlay would be work for nothing. `pickWalk` is cached, so the overlay and this share
+  // one computation per layout.
+  const route = useMemo(() => (showPickPath ? pickWalk(layout) : null), [showPickPath, layout])
   const overVolume = useMemo(
     () =>
       Object.values(layout.racks).reduce((sum, r) => {
@@ -43,6 +49,11 @@ export function StatusBar() {
       <span className="w-32">
         {pointer ? `x ${pointer.x.toFixed(1)} m · z ${pointer.z.toFixed(1)} m` : '—'}
       </span>
+      {route && route.stops.length > 0 && (
+        <span style={{ color: '#22d3ee' }}>
+          {t('sb.route', { m: route.totalMeters.toFixed(1), n: route.stops.length })}
+        </span>
+      )}
       <span>
         {t('sb.counts', { racks: rackCount, slots: slotCount })}
         {wallCount > 0 && ` ${t('sb.walls', { n: wallCount })}`}
