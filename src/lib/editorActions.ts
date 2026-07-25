@@ -2,11 +2,11 @@ import type { GhostState, GroupGhostState, RackRotation, WallDraft, ZoneDraft } 
 import { useWarehouseStore, undo, redo, markHistoryBoundary } from '../store/useWarehouseStore'
 import { useEditorStore } from '../store/useEditorStore'
 import { clampGridCenter, clampGridFree, gridToWorld, worldToGrid } from './grid'
-import { findJoinSnap } from './joinSnap'
+import { findJoinSnaps } from './joinSnap'
 import { JOIN_TOL } from './runs'
 import { getFootprint } from './rackGeometry'
 import { isPlacementValid, rackIndex, validateGroupPlacement, type RackMove } from './collision'
-import { alignMoves, distributeMoves, type AlignMode } from './align'
+import { alignMoves, distributeMoves, packRunMoves, type AlignMode } from './align'
 import { buildArraySpecs, type ArraySpec } from './arrayTool'
 import { MIN_WALL_CELLS, snapWallSegment } from './walls'
 import { MIN_ZONE_CELLS } from './zones'
@@ -34,7 +34,7 @@ export function computeGhost(
   const cell = layout.floor.cellSize
 
   if (opts?.snap !== false) {
-    const join = findJoinSnap(
+    const joins = findJoinSnaps(
       layout,
       templateId,
       rotation,
@@ -42,18 +42,32 @@ export function computeGhost(
       worldZ,
       excludeId ? new Set([excludeId]) : undefined,
     )
-    if (join) {
+    // Walk them nearest-first: the closest junction is often already taken (dragging a
+    // rack into the middle of a run), and offering the next free end beats showing an
+    // invalid ghost the user has to nudge their way out of.
+    let firstBlocked: GhostState | null = null
+    for (const join of joins) {
       const gridX = clampGridFree(join.worldX, w, layout.floor.widthM, cell)
       const gridZ = clampGridFree(join.worldZ, d, layout.floor.depthM, cell)
       // Discard the join if the floor clamp had to move it — a clamped join is no join.
       const kept =
         Math.abs(gridX * cell - join.worldX) <= JOIN_TOL &&
         Math.abs(gridZ * cell - join.worldZ) <= JOIN_TOL
-      if (kept) {
-        const valid = isPlacementValid(layout, templateId, gridX, gridZ, rotation, excludeId)
-        return { gridX, gridZ, rotation, valid, join: { markerAlong: join.markerAlong, markerCross: join.markerCross, axis: join.axis } }
+      if (!kept) continue
+      const valid = isPlacementValid(layout, templateId, gridX, gridZ, rotation, excludeId)
+      const ghost: GhostState = {
+        gridX,
+        gridZ,
+        rotation,
+        valid,
+        join: { markerAlong: join.markerAlong, markerCross: join.markerCross, axis: join.axis },
       }
+      if (valid) return ghost
+      firstBlocked ??= ghost
     }
+    // Every junction in reach is occupied: keep the nearest one so the ghost still reads
+    // as "this is where it wants to go", rather than snapping back to a raw grid cell.
+    if (firstBlocked) return firstBlocked
   }
 
   const gridX = clampGridCenter(worldX, w, layout.floor.widthM, cell)
@@ -440,6 +454,21 @@ export function alignSelection(mode: AlignMode): void {
   const { layout, moveRacks } = useWarehouseStore.getState()
   const moves = alignMoves(layout, [...ed.selectedRackIds], mode)
   applyMoves(moves, ed, layout, moveRacks)
+}
+
+/**
+ * Close the selected racks up into one joined run. Deterministic where the drag magnet
+ * is fiddly — a fine grid step, or a whole row that has drifted apart by centimetres.
+ */
+export function packSelectionIntoRun(): void {
+  const ed = useEditorStore.getState()
+  const { layout, moveRacks } = useWarehouseStore.getState()
+  const result = packRunMoves(layout, [...ed.selectedRackIds])
+  if ('refusal' in result) {
+    if (result.refusal === 'mixed') ed.showToast(t('toast.packMixed'), 'error')
+    return
+  }
+  applyMoves(result.moves, ed, layout, moveRacks)
 }
 
 /** Equalize the gaps between the selected racks along one axis. */

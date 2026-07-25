@@ -9,6 +9,7 @@ import {
   applyArray,
   deleteSelected,
   distributeSelection,
+  packSelectionIntoRun,
   duplicateSelection,
   previewArray,
   requestDelete,
@@ -728,6 +729,16 @@ function MultiRackPanel() {
             {t('multi.distributeZ')}
           </button>
         </div>
+        {/* Closing a row into one run is what people reach for when the drag magnet is
+            awkward, so it sits with align/distribute rather than in a menu. */}
+        <button
+          className="btn mt-1 w-full justify-center"
+          title={t('multi.packRunHint')}
+          disabled={mixed}
+          onClick={packSelectionIntoRun}
+        >
+          {t('multi.packRun')}
+        </button>
       </div>
 
       <div className="flex gap-1">

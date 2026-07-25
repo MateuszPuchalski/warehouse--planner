@@ -1,5 +1,6 @@
 import type { WarehouseLayout } from '../types'
 import { rackIndex, type RackMove } from './collision'
+import { joinedSpacing, runAxis, runCoords } from './runs'
 
 export type AlignMode = 'minX' | 'centerX' | 'maxX' | 'minZ' | 'centerZ' | 'maxZ'
 
@@ -39,6 +40,54 @@ export function alignMoves(layout: WarehouseLayout, ids: string[], mode: AlignMo
     })
   }
   return moves
+}
+
+/** Why a set of racks cannot be packed into one run. */
+export type PackRefusal = 'tooFew' | 'mixed'
+
+/**
+ * Close the selected racks up into one continuous run: same row line, structural spans
+ * meeting exactly, original order preserved. The rack lowest along the run stays put and
+ * the others come to it.
+ *
+ * This is the deterministic counterpart to the drag magnet — on a fine grid, or across a
+ * long row, hitting every junction by hand is fiddly. Only racks of one template facing
+ * one way can form a run (`runIndex`' rule), so anything mixed is refused rather than
+ * silently rearranged.
+ */
+export function packRunMoves(
+  layout: WarehouseLayout,
+  ids: string[],
+): { moves: RackMove[] } | { refusal: PackRefusal } {
+  const racks = ids.map((id) => layout.racks[id]).filter((r): r is NonNullable<typeof r> => !!r)
+  if (racks.length < 2) return { refusal: 'tooFew' }
+  const first = racks[0]
+  const tpl = layout.templates[first.templateId]
+  if (!tpl) return { refusal: 'mixed' }
+  // 0°≡180° and 90°≡270° render identically, so they may share a run.
+  const facing = first.rotation % 180
+  if (racks.some((r) => r.templateId !== first.templateId || r.rotation % 180 !== facing)) {
+    return { refusal: 'mixed' }
+  }
+
+  const cell = layout.floor.cellSize
+  const axis = runAxis(first.rotation)
+  const coords = new Map(
+    racks.map((r) => [r.id, runCoords(r.gridX, r.gridZ, r.rotation, cell)] as const),
+  )
+  const sorted = [...racks].sort((a, b) => coords.get(a.id)!.along - coords.get(b.id)!.along)
+  const anchor = coords.get(sorted[0].id)!
+  const spacing = joinedSpacing(tpl, tpl)
+
+  const moves: RackMove[] = []
+  sorted.forEach((r, i) => {
+    const along = anchor.along + i * spacing
+    const gridX = (axis === 'x' ? along : anchor.cross) / cell
+    const gridZ = (axis === 'x' ? anchor.cross : along) / cell
+    if (Math.abs(gridX - r.gridX) < 1e-9 && Math.abs(gridZ - r.gridZ) < 1e-9) return
+    moves.push({ rackId: r.id, gridX, gridZ })
+  })
+  return { moves }
 }
 
 /**
