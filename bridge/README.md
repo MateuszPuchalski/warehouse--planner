@@ -22,7 +22,8 @@ to be adapted to your Subiekt schema and network. It does not modify any data.
     "locationRaw": "H01-01-01",   // optional — raw address, parsed by the client
     "ean": "5901234123457",       // optional
     "unitVolumeM3": 0.0008,        // optional — per-unit volume in m³
-    "unitWeightKg": 0.25           // optional — per-unit weight in kg
+    "unitWeightKg": 0.25,          // optional — per-unit weight in kg
+    "unitDimsMm": { "l": 395, "w": 65, "h": 3 }  // optional — measured outer size in mm
   }
 ]
 ```

@@ -18,6 +18,10 @@ export interface ColumnMapping {
   weight: number | null
   /** Optional barcode/EAN column; null when absent. */
   ean: number | null
+  /** Optional per-unit outer dimensions; all three must be present to be used. */
+  length: number | null
+  width: number | null
+  height: number | null
 }
 
 /** Volume column unit → factor converting a cell value to m³. */
@@ -27,6 +31,17 @@ export const VOLUME_UNIT_FACTORS: Record<VolumeUnit, number> = { m3: 1, dm3: 1e-
 /** Weight column unit → factor converting a cell value to kg. */
 export type WeightUnit = 'kg' | 'g'
 export const WEIGHT_UNIT_FACTORS: Record<WeightUnit, number> = { kg: 1, g: 1e-3 }
+
+/** Dimension column unit → factor converting a cell value to mm. */
+export type DimUnit = 'mm' | 'cm' | 'm'
+export const DIM_UNIT_FACTORS: Record<DimUnit, number> = { mm: 1, cm: 10, m: 1000 }
+
+/** Units picked from the header text, so `weight_g` is not read as kilograms. */
+export interface UnitGuess {
+  volume?: VolumeUnit
+  weight?: WeightUnit
+  dims?: DimUnit
+}
 
 export interface ParsedFile {
   rows: Grid
@@ -110,6 +125,38 @@ const HEADER_KEYWORDS: Record<keyof ColumnMapping, string[]> = {
   volume: ['objetosc', 'kubatura', 'volume', 'cbm', 'm3'],
   weight: ['waga', 'masa', 'weight'],
   ean: ['ean', 'barcode', 'gtin', 'kodkreskowy'],
+  length: ['dlugosc', 'length', 'dlug', 'dl'],
+  width: ['szerokosc', 'width', 'szer'],
+  height: ['wysokosc', 'height', 'wys'],
+}
+
+/**
+ * Unit hidden in the header text, e.g. `weight_g`, `length_mm`, `objetosc [dm3]`.
+ * Without this a `weight_g` column maps cleanly onto the weight field and is then read
+ * with the kg default — every value off by a factor of a thousand, silently.
+ */
+function unitFromHeader(header: Cell | undefined): string | null {
+  if (header === undefined) return null
+  const m = /(?:_|\s|\[|\()([a-z]{1,3}\d?)\)?\]?\s*$/i.exec(String(header).trim())
+  return m ? m[1].toLowerCase() : null
+}
+
+export function guessUnits(headerRow: Cell[], mapping: ColumnMapping): UnitGuess {
+  const out: UnitGuess = {}
+  const vol = mapping.volume !== null ? unitFromHeader(headerRow[mapping.volume]) : null
+  if (vol === 'm3' || vol === 'dm3' || vol === 'cm3') out.volume = vol
+  const wgt = mapping.weight !== null ? unitFromHeader(headerRow[mapping.weight]) : null
+  if (wgt === 'kg' || wgt === 'g') out.weight = wgt
+  // One unit for all three dimension columns: the first one that carries a hint wins,
+  // since a file mixing mm and cm across length/width/height would be broken anyway.
+  for (const col of [mapping.length, mapping.width, mapping.height]) {
+    const d = col !== null ? unitFromHeader(headerRow[col]) : null
+    if (d === 'mm' || d === 'cm' || d === 'm') {
+      out.dims = d
+      break
+    }
+  }
+  return out
 }
 
 export function guessMapping(headerRow: Cell[]): ColumnMapping | null {
@@ -134,6 +181,9 @@ export function guessMapping(headerRow: Cell[]): ColumnMapping | null {
   const volume = find(HEADER_KEYWORDS.volume)
   const weight = find(HEADER_KEYWORDS.weight)
   const ean = find(HEADER_KEYWORDS.ean)
+  const length = find(HEADER_KEYWORDS.length)
+  const width = find(HEADER_KEYWORDS.width)
+  const height = find(HEADER_KEYWORDS.height)
   if (symbol === -1 || quantity === -1 || location === -1) return null
   return {
     symbol,
@@ -144,6 +194,9 @@ export function guessMapping(headerRow: Cell[]): ColumnMapping | null {
     volume: volume === -1 ? null : volume,
     weight: weight === -1 ? null : weight,
     ean: ean === -1 ? null : ean,
+    length: length === -1 ? null : length,
+    width: width === -1 ? null : width,
+    height: height === -1 ? null : height,
   }
 }
 
@@ -182,6 +235,10 @@ export interface StockConversion {
   items: StockItem[]
   /** Rows with an empty location field (imported nowhere, reported in the summary). */
   noLocation: number
+  /** Rows that produced a full set of measured dimensions. */
+  withDims: number
+  /** Rows that produced a per-unit weight. */
+  withWeight: number
 }
 
 export function rowsToStockItems(
@@ -190,11 +247,15 @@ export function rowsToStockItems(
   skipHeader: boolean,
   volumeUnit: VolumeUnit = 'm3',
   weightUnit: WeightUnit = 'kg',
+  dimUnit: DimUnit = 'mm',
 ): StockConversion {
   const items: StockItem[] = []
   let noLocation = 0
+  let withDims = 0
+  let withWeight = 0
   const volumeFactor = VOLUME_UNIT_FACTORS[volumeUnit]
   const weightFactor = WEIGHT_UNIT_FACTORS[weightUnit]
+  const dimFactor = DIM_UNIT_FACTORS[dimUnit]
   for (const row of skipHeader ? rows.slice(1) : rows) {
     const symbol = String(row[mapping.symbol] ?? '').trim()
     if (!symbol) continue
@@ -211,7 +272,25 @@ export function rowsToStockItems(
     let unitWeightKg: number | undefined
     if (mapping.weight !== null) {
       const w = toQuantity(row[mapping.weight] ?? 0) * weightFactor
-      if (w > 0) unitWeightKg = w
+      if (w > 0) {
+        unitWeightKg = w
+        withWeight++
+      }
+    }
+    // Dimensions only count as measured when all three are present — two out of three
+    // describes nothing, and a partial row would produce a nonsense volume.
+    let unitDimsMm: { l: number; w: number; h: number } | undefined
+    if (mapping.length !== null && mapping.width !== null && mapping.height !== null) {
+      const l = toQuantity(row[mapping.length] ?? 0) * dimFactor
+      const w = toQuantity(row[mapping.width] ?? 0) * dimFactor
+      const h = toQuantity(row[mapping.height] ?? 0) * dimFactor
+      if (l > 0 && w > 0 && h > 0) {
+        unitDimsMm = { l, w, h }
+        withDims++
+        // An explicit volume column stays authoritative; dimensions only fill the gap,
+        // so a file carrying both never has its stated volume quietly overwritten.
+        if (unitVolumeM3 === undefined) unitVolumeM3 = (l * w * h) / 1e9
+      }
     }
     const ean = mapping.ean !== null ? String(row[mapping.ean] ?? '').trim() || undefined : undefined
     items.push({
@@ -221,13 +300,14 @@ export function rowsToStockItems(
       unit: mapping.unit !== null ? String(row[mapping.unit] ?? '').trim() || undefined : undefined,
       unitVolumeM3,
       unitWeightKg,
+      unitDimsMm,
       ean,
       locationRaw,
       locations,
       otherLocations: other,
     })
   }
-  return { items, noLocation }
+  return { items, noLocation, withDims, withWeight }
 }
 
 /** One record as returned by the LAN bridge (`GET /api/stock`). */
@@ -243,6 +323,8 @@ export interface BridgeRecord {
   unitVolumeM3?: number
   /** Per-unit weight in kg (already normalized by the bridge). */
   unitWeightKg?: number
+  /** Per-unit outer dimensions in mm (already normalized by the bridge). */
+  unitDimsMm?: { l: number; w: number; h: number }
 }
 
 /**
@@ -250,6 +332,13 @@ export interface BridgeRecord {
  * file import so `A01-02-03` addressing has a single source of truth. Records
  * without a symbol are skipped.
  */
+function validDims(d: BridgeRecord['unitDimsMm']): StockItem['unitDimsMm'] {
+  if (!d || typeof d !== 'object') return undefined
+  const { l, w, h } = d
+  const ok = [l, w, h].every((v) => typeof v === 'number' && Number.isFinite(v) && v > 0)
+  return ok ? { l, w, h } : undefined
+}
+
 export function objectsToStockItems(records: BridgeRecord[]): StockItem[] {
   const items: StockItem[] = []
   for (const r of records) {
@@ -264,6 +353,7 @@ export function objectsToStockItems(records: BridgeRecord[]): StockItem[] {
       unit: r.unit ? String(r.unit).trim() || undefined : undefined,
       unitVolumeM3: typeof r.unitVolumeM3 === 'number' && r.unitVolumeM3 > 0 ? r.unitVolumeM3 : undefined,
       unitWeightKg: typeof r.unitWeightKg === 'number' && r.unitWeightKg > 0 ? r.unitWeightKg : undefined,
+      unitDimsMm: validDims(r.unitDimsMm),
       ean: r.ean ? String(r.ean).trim() || undefined : undefined,
       locationRaw,
       locations,

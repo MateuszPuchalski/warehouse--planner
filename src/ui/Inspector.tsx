@@ -24,6 +24,7 @@ import { pickWalk } from '../lib/pickWalk'
 import type { AlignMode } from '../lib/align'
 import type { ArraySpec } from '../lib/arrayTool'
 import { canJoin } from '../lib/runs'
+import { fitsOpening, formatDims, formatOpening, slotOpeningMm } from '../lib/fit'
 import { wallLengthM } from '../lib/walls'
 import { ZONE_KINDS, zoneColor, zoneRectM } from '../lib/zones'
 import { normalizeUserRackCode } from '../lib/locationCode'
@@ -317,6 +318,7 @@ function SlotEditor({ rackId, slotKey }: { rackId: string; slotKey: string }) {
   const slot = resolveSlot(template, rack, bay, level)
   const override = rack.slotOverrides[slotKey] ?? {}
   const vol = effectiveVolume(slot, stock?.[slotKey])
+  const opening = slotOpeningMm(template, level)
 
   const STATUSES: SlotStatus[] = ['blocked', 'empty', 'ok', 'warning', 'overweight']
 
@@ -462,6 +464,16 @@ function SlotEditor({ rackId, slotKey }: { rackId: string; slotKey: string }) {
                       : ` · ${t('slot.noVolumeData')}`}
                     {item.locations.length > 1 && <> · {t('slot.multiLocation', { n: item.locations.length })}</>}
                   </div>
+                  {/* Measured goods recorded somewhere they physically cannot be: the
+                      address is wrong, or the rack is. Only ever shown for measured items. */}
+                  {item.unitDimsMm && opening && !fitsOpening(item.unitDimsMm, opening) && (
+                    <div className="font-medium text-danger">
+                      {t('slot.tooBig', {
+                        dims: formatDims(item.unitDimsMm),
+                        opening: formatOpening(opening),
+                      })}
+                    </div>
+                  )}
                 </div>
               </div>
             )

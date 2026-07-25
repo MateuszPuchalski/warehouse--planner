@@ -4,8 +4,13 @@ import type { ParsedLocation } from '../types'
  * Subiekt location code: `<Aisle><RackNo>-<Column>-<Level>`, e.g. "A01-02-03" =
  * aisle A, rack 01, column (kolumna) 02, level (poziom) 03. All parts 1-based.
  * The middle part is the COLUMN (app: bay) and the last part is the LEVEL.
+ *
+ * The trailing group tolerates the annotations real exports carry —
+ * "B04-01-03-PAKOWALNIA", "H02-06-01PO" — which address the same slot with a note
+ * attached. It stays anchored, so a genuinely broken token ("LA03-04-01", "A03-05-0")
+ * still fails and gets reported rather than guessed at.
  */
-const LOC_RE = /^([A-Z])(\d{1,3})-(\d{1,3})-(\d{1,3})$/
+const LOC_RE = /^([A-Z])(\d{1,3})-(\d{1,3})-(\d{1,3})(?:-?[A-Z]+)?$/
 
 export function normalizeRackCode(line: string, rackNo: number): string {
   return `${line.toUpperCase()}${String(rackNo).padStart(2, '0')}`
@@ -46,6 +51,17 @@ export function parseLocationField(raw: string): {
     else other.push(token)
   }
   return { locations, other }
+}
+
+/**
+ * Container labels (pallets, boxes) that legitimately sit in a location field. Anything
+ * else left over is a broken address worth naming in the import summary — the app cannot
+ * place it, and the fix belongs in the ERP.
+ */
+const CONTAINER_RE = /^(PALETA|PAL|KT|KTR)[\w-]*$/
+
+export function isContainerToken(token: string): boolean {
+  return CONTAINER_RE.test(token.trim().toUpperCase())
 }
 
 /** Line letter of a rack code ("A01" → "A"). */

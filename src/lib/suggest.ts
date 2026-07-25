@@ -2,9 +2,16 @@ import type { CarrierKind, WarehouseLayout } from '../types'
 import type { StockIndex } from '../store/useStockStore'
 import { allSlots, effectiveVolume } from './rackGeometry'
 import { carrierKind } from './loadProxy'
+import { fitsOpening, slotOpeningMm } from './fit'
 
 export interface SuggestRequest {
   neededVolumeM3: number
+  /**
+   * Measured dimensions of ONE unit (mm). When present, slots whose opening cannot take
+   * the product in any orientation are excluded — volume alone would offer a 45 cm column
+   * for a 2 m bar. Absent for unmeasured products, which are then filtered exactly as before.
+   */
+  dimsMm?: { l: number; w: number; h: number }
   /** Optional weight per placement (kg); when set, filters by the slot's weight headroom. */
   neededWeightKg?: number
   /** Optional carrier filter; when set, only racks of this carrier qualify. */
@@ -64,6 +71,11 @@ export function suggestSlots(
 
       const remainingWeightKg = slot.maxWeightKg - slot.currentWeightKg
       if (req.neededWeightKg !== undefined && remainingWeightKg + EPS < req.neededWeightKg) continue
+
+      // Only where an opening is meaningful — see `slotOpeningMm`; pallet levels are not
+      // constrained at column granularity, so they stay eligible.
+      const opening = req.dimsMm ? slotOpeningMm(template, slot.level) : null
+      if (opening && !fitsOpening(req.dimsMm!, opening)) continue
 
       const fillAfter = (current + req.neededVolumeM3) / slot.maxVolumeM3
       const empty = current < EPS

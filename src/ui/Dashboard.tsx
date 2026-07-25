@@ -72,6 +72,7 @@ export function Dashboard() {
             <Tile label={t('kpi.freeSlots')} value={String(k.freeSlots)} sub={t('kpi.racks', { n: k.rackCount })} />
             <Tile label={t('kpi.overweight')} value={String(k.overweightSlots)} danger={k.overweightSlots > 0} />
             <Tile label={t('kpi.overVolume')} value={String(k.overVolumeSlots)} danger={k.overVolumeSlots > 0} />
+        <Tile label={t('kpi.misfit')} value={String(k.misfitSlots)} danger={k.misfitSlots > 0} />
             <Tile label={t('kpi.aisles')} value={String(k.aisleViolations)} danger={k.aisleViolations > 0} />
           </div>
 

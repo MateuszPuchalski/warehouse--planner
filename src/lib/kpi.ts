@@ -2,6 +2,7 @@ import type { CarrierKind, RackInstance, RackTemplate, SlotKey, SlotRole, StockI
 import type { StockIndex } from '../store/useStockStore'
 import { allSlots, countOverVolume, effectiveVolume, rackStats } from './rackGeometry'
 import { carrierKind } from './loadProxy'
+import { countMisfit } from './fit'
 import { validateAisles } from './collision'
 
 export interface CarrierStat {
@@ -21,6 +22,8 @@ export interface WarehouseKpis {
   volumeUtilPct: number
   overweightSlots: number
   overVolumeSlots: number
+  /** Slots holding a measured product that does not physically fit their opening. */
+  misfitSlots: number
   aisleViolations: number
   byCarrier: Record<CarrierKind, CarrierStat>
   /** Slot counts split by operational function (pallet positions vs picking faces). */
@@ -66,6 +69,8 @@ export interface RackKpi {
   volumeUtilPct: number
   overVolumeSlots: number
   overweightSlots: number
+  /** Slots holding a measured product that does not physically fit their opening. */
+  misfitSlots: number
   /** Slot counts split by operational function (pallet positions vs picking faces). */
   byRole: Record<SlotRole, { total: number; occupied: number }>
 }
@@ -108,6 +113,7 @@ function rackKpi(
     volumeUtilPct: volumeCapacityM3 > 0 ? volumeUsedM3 / volumeCapacityM3 : 0,
     overVolumeSlots: countOverVolume(tpl, rack, stock),
     overweightSlots: rackStats(tpl, rack).overweight,
+    misfitSlots: countMisfit(tpl, rack, stock),
     byRole,
   }
 }
@@ -136,6 +142,7 @@ export function computeKpis(
   let volumeUsedM3 = 0
   let overweightSlots = 0
   let overVolumeSlots = 0
+  let misfitSlots = 0
   const byCarrier = emptyCarrierStats()
   const byRole = emptyRoleStats()
 
@@ -150,6 +157,7 @@ export function computeKpis(
     volumeUsedM3 += r.volumeUsedM3
     overweightSlots += r.overweightSlots
     overVolumeSlots += r.overVolumeSlots
+    misfitSlots += r.misfitSlots
     byCarrier[r.carrier].total += r.slotCount
     byCarrier[r.carrier].occupied += r.occupiedSlots
     for (const role of ROLES) {
@@ -185,6 +193,7 @@ export function computeKpis(
     volumeUtilPct: volumeCapacityM3 > 0 ? volumeUsedM3 / volumeCapacityM3 : 0,
     overweightSlots,
     overVolumeSlots,
+    misfitSlots,
     aisleViolations: validateAisles(layout).length,
     byCarrier,
     byRole,

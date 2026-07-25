@@ -5,20 +5,28 @@ import { useEditorStore } from '../store/useEditorStore'
 import { useStockStore } from '../store/useStockStore'
 import {
   guessMapping,
+  guessUnits,
   parseStockFile,
   rowsToStockItems,
   type ColumnMapping,
+  type DimUnit,
   type ParsedFile,
   type VolumeUnit,
   type WeightUnit,
 } from '../lib/stockFile'
+import { isContainerToken } from '../lib/locationCode'
 import { buildPlan } from '../lib/autoBuild'
 import { recordHistorySnapshot } from '../lib/history'
 import { useT, type TranslationKey } from '../lib/i18n'
 
-const MAPPING_FIELDS = ['symbol', 'name', 'quantity', 'location', 'unit', 'volume', 'weight', 'ean'] as const
+const MAPPING_FIELDS = [
+  'symbol', 'name', 'quantity', 'location', 'unit', 'volume', 'weight', 'ean', 'length', 'width', 'height',
+] as const
+/** Fields the import can do without; they get an explicit "ignore" option. */
+const OPTIONAL_FIELDS = new Set(['unit', 'volume', 'weight', 'ean', 'length', 'width', 'height'])
 const VOLUME_UNITS: VolumeUnit[] = ['m3', 'dm3', 'cm3']
 const WEIGHT_UNITS: WeightUnit[] = ['kg', 'g']
+const DIM_UNITS: DimUnit[] = ['mm', 'cm', 'm']
 
 const PREVIEW_ROWS = 12
 
@@ -48,6 +56,7 @@ export function SubiektImport() {
   const [firstRowIsData, setFirstRowIsData] = useState(false)
   const [volumeUnit, setVolumeUnit] = useState<VolumeUnit>('m3')
   const [weightUnit, setWeightUnit] = useState<WeightUnit>('kg')
+  const [dimUnit, setDimUnit] = useState<DimUnit>('mm')
   // Opt-in: by default the import only fills existing racks and never mutates the layout.
   const [createMissing, setCreateMissing] = useState(false)
 
@@ -61,11 +70,19 @@ export function SubiektImport() {
       const result = await parseStockFile(file)
       setParsed(result)
       setFileName(file.name)
-      setMapping(
-        result.headerGuess ?? {
-          symbol: 0, name: 1, quantity: 2, location: 3, unit: null, volume: null, weight: null, ean: null,
-        },
-      )
+      const guess = result.headerGuess ?? {
+        symbol: 0, name: 1, quantity: 2, location: 3,
+        unit: null, volume: null, weight: null, ean: null, length: null, width: null, height: null,
+      }
+      setMapping(guess)
+      // Units come from the header text where it states them (`weight_g`, `length_mm`):
+      // the kg/m³ defaults would otherwise misread such a file by a factor of a thousand.
+      if (result.headerGuess) {
+        const units = guessUnits(result.rows[0], result.headerGuess)
+        setVolumeUnit(units.volume ?? 'm3')
+        setWeightUnit(units.weight ?? 'kg')
+        setDimUnit(units.dims ?? 'mm')
+      }
       setFirstRowIsData(result.headerGuess === null && guessMapping(result.rows[0]) === null)
     } catch (err) {
       showToast(
@@ -77,8 +94,8 @@ export function SubiektImport() {
 
   const conversion = useMemo(() => {
     if (!parsed || !mapping) return null
-    return rowsToStockItems(parsed.rows, mapping, !firstRowIsData, volumeUnit, weightUnit)
-  }, [parsed, mapping, firstRowIsData, volumeUnit, weightUnit])
+    return rowsToStockItems(parsed.rows, mapping, !firstRowIsData, volumeUnit, weightUnit, dimUnit)
+  }, [parsed, mapping, firstRowIsData, volumeUnit, weightUnit, dimUnit])
 
   const plan = useMemo(() => {
     if (!conversion) return null
@@ -126,6 +143,19 @@ export function SubiektImport() {
 
   const previewRows = parsed ? parsed.rows.slice(firstRowIsData ? 0 : 1, PREVIEW_ROWS + 1) : []
   const colCount = parsed ? Math.max(...parsed.rows.slice(0, 5).map((r) => r.length)) : 0
+
+  // Location entries the parser could not read and that are not container labels: named
+  // in the summary so they can be corrected in the ERP instead of vanishing.
+  const badTokens = useMemo(() => {
+    if (!conversion) return []
+    const seen = new Set<string>()
+    for (const item of conversion.items) {
+      for (const token of item.otherLocations) {
+        if (!isContainerToken(token)) seen.add(token)
+      }
+    }
+    return [...seen].sort()
+  }, [conversion])
 
   const badLocation = (item: StockItem | undefined) =>
     item !== undefined && item.locationRaw !== '' && item.locations.length === 0
@@ -240,12 +270,11 @@ export function SubiektImport() {
                     value={mapping[field] ?? -1}
                     onChange={(e) => {
                       const v = Number(e.target.value)
-                      const nullable =
-                        field === 'unit' || field === 'volume' || field === 'weight' || field === 'ean'
+                      const nullable = OPTIONAL_FIELDS.has(field)
                       setMapping({ ...mapping, [field]: nullable && v === -1 ? null : v })
                     }}
                   >
-                    {(field === 'unit' || field === 'volume' || field === 'weight' || field === 'ean') && (
+                    {OPTIONAL_FIELDS.has(field) && (
                       <option value={-1}>{t('subiekt.colIgnore')}</option>
                     )}
                     {Array.from({ length: colCount }, (_, i) => (
@@ -270,6 +299,22 @@ export function SubiektImport() {
                     {VOLUME_UNITS.map((u) => (
                       <option key={u} value={u}>
                         {t(`subiekt.volumeUnit.${u}` as TranslationKey)}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
+              {(mapping.length !== null || mapping.width !== null || mapping.height !== null) && (
+                <label className="flex items-center gap-1.5 text-[11px] text-muted">
+                  {t('subiekt.dimUnit')}
+                  <select
+                    className="field w-24"
+                    value={dimUnit}
+                    onChange={(e) => setDimUnit(e.target.value as DimUnit)}
+                  >
+                    {DIM_UNITS.map((u) => (
+                      <option key={u} value={u}>
+                        {t(`subiekt.dimUnit.${u}` as TranslationKey)}
                       </option>
                     ))}
                   </select>
@@ -310,6 +355,7 @@ export function SubiektImport() {
                     <th className="px-2 py-1 text-left">{t('subiekt.col.name')}</th>
                     <th className="px-2 py-1 text-right">{t('subiekt.col.quantity')}</th>
                     <th className="px-2 py-1 text-left">{t('subiekt.col.location')}</th>
+                    <th className="px-2 py-1 text-right">mm</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -328,6 +374,13 @@ export function SubiektImport() {
                           {item.locationRaw || '—'}
                           {bad && ` · ${t('subiekt.badLocation')}`}
                         </td>
+                        {/* Dimensions in the preview: a column mapped to the wrong field
+                            shows up here before the import, not after. */}
+                        <td className="px-2 py-1 text-right text-muted">
+                          {item.unitDimsMm
+                            ? `${item.unitDimsMm.l}×${item.unitDimsMm.w}×${item.unitDimsMm.h}`
+                            : '—'}
+                        </td>
                       </tr>
                     )
                   })}
@@ -344,6 +397,22 @@ export function SubiektImport() {
                   missing: plan.racks.length,
                 })}
               </div>
+              {(conversion.withDims > 0 || conversion.withWeight > 0) && (
+                <div className="text-muted">
+                  {t('subiekt.measured', {
+                    dims: conversion.withDims,
+                    weight: conversion.withWeight,
+                    total: conversion.items.length,
+                  })}
+                </div>
+              )}
+              {badTokens.length > 0 && (
+                // Named, not silently dropped: these are ERP typos the user can fix.
+                <div className="text-warn">
+                  {t('subiekt.badTokens', { list: badTokens.slice(0, 8).join(', ') })}
+                  {badTokens.length > 8 && ` … +${badTokens.length - 8}`}
+                </div>
+              )}
               <div className="text-muted">
                 {palletOnly > 0 && <>{t('subiekt.palletOnly', { n: palletOnly })} · </>}
                 {conversion.noLocation > 0 && <>{t('subiekt.noLocation', { n: conversion.noLocation })} · </>}
