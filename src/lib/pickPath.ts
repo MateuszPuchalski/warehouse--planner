@@ -48,15 +48,25 @@ function faceNormal(rotation: RackRotation): { nx: number; nz: number } {
 const routeCache = new WeakMap<WarehouseLayout, PickStop[]>()
 
 /**
- * Walking order derived strictly from ERP rack codes: line letter A→Z, then rack
- * number ascending. With serpentine on, every other line is walked back the other way,
- * which is how a picker actually moves through a hall.
+ * Walking order derived from ERP rack codes: line letter A→Z, then rack number ascending
+ * inside the line.
+ *
+ * With serpentine ON a line may be walked from its high end down — but only when that end
+ * is the one the picker is actually standing nearer to when the previous line ends. The
+ * old rule reversed every second line by its position in the alphabet, which is where
+ * "after A06 comes B06 instead of B01" came from: nothing about the hall said line B
+ * should be entered from its far end, only that B is the second letter. Deciding it by
+ * distance gives the classic zig-zag wherever the lines really are laid out side by side,
+ * and leaves the order ascending wherever they are not.
+ *
+ * With serpentine OFF every line is walked strictly ascending: A01…A08, B01…B04, …
  *
  * Racks without a code are outside the sequence by construction — they have no ERP
  * address, so nothing can be picked from them.
  *
- * Note this reflects the CODES, not the geometry: if the codes don't follow the
- * physical layout the route will zig-zag, and seeing that is the point.
+ * Note this reflects the CODES, not the geometry: the lines themselves are visited
+ * alphabetically, so if the codes don't follow the physical layout the route will still
+ * jump between lines, and seeing that is the point.
  */
 export function pickRoute(layout: WarehouseLayout): PickStop[] {
   const hit = routeCache.get(layout)
@@ -65,39 +75,48 @@ export function pickRoute(layout: WarehouseLayout): PickStop[] {
   const cell = layout.floor.cellSize
   const serpentine = layout.floor.pickSerpentine !== false
 
-  // Group coded racks by line letter.
-  const byLine = new Map<string, { rackId: string; code: string; no: number }[]>()
+  // Group coded racks by line letter, resolving the standing point straight away — the
+  // direction each line is walked in is decided from those points.
+  type Entry = { rackId: string; code: string; no: number; x: number; z: number }
+  const byLine = new Map<string, Entry[]>()
   for (const rack of Object.values(layout.racks)) {
     if (!isAddressable(rack)) continue
+    const tpl = layout.templates[rack.templateId]
+    if (!tpl) continue
     const no = rackNoOf(rack.code)!
     const line = lineOf(rack.code)
-    const entry = { rackId: rack.id, code: rack.code, no }
+    const { nx, nz } = faceNormal(rack.rotation)
+    // Stand clear of the face rather than inside the rack.
+    const offset = tpl.depth / 2 + 0.4
+    const entry: Entry = {
+      rackId: rack.id,
+      code: rack.code,
+      no,
+      x: gridToWorld(rack.gridX, cell) + nx * offset,
+      z: gridToWorld(rack.gridZ, cell) + nz * offset,
+    }
     const list = byLine.get(line)
     if (list) list.push(entry)
     else byLine.set(line, [entry])
   }
 
   const stops: PickStop[] = []
-  const lines = [...byLine.keys()].sort()
-  lines.forEach((line, lineIdx) => {
+  let at: { x: number; z: number } | null = null
+  for (const line of [...byLine.keys()].sort()) {
     const racks = byLine.get(line)!.sort((a, b) => a.no - b.no || a.code.localeCompare(b.code))
-    if (serpentine && lineIdx % 2 === 1) racks.reverse()
-    for (const entry of racks) {
-      const rack = layout.racks[entry.rackId]
-      const tpl = layout.templates[rack.templateId]
-      if (!tpl) continue
-      const { nx, nz } = faceNormal(rack.rotation)
-      // Stand clear of the face rather than inside the rack.
-      const offset = tpl.depth / 2 + 0.4
-      stops.push({
-        rackId: rack.id,
-        code: entry.code,
-        seq: stops.length + 1,
-        x: gridToWorld(rack.gridX, cell) + nx * offset,
-        z: gridToWorld(rack.gridZ, cell) + nz * offset,
-      })
+    // Enter the line at whichever end is closer to where the previous line left us.
+    if (serpentine && at && racks.length > 1) {
+      const head = racks[0]
+      const tail = racks[racks.length - 1]
+      const toHead = Math.hypot(head.x - at.x, head.z - at.z)
+      const toTail = Math.hypot(tail.x - at.x, tail.z - at.z)
+      if (toTail < toHead) racks.reverse()
     }
-  })
+    for (const entry of racks) {
+      stops.push({ rackId: entry.rackId, code: entry.code, seq: stops.length + 1, x: entry.x, z: entry.z })
+      at = entry
+    }
+  }
 
   routeCache.set(layout, stops)
   return stops
