@@ -60,9 +60,11 @@ function Dimension({ line }: { line: DimLine }) {
 }
 
 /**
- * Floor dimensions: overall hall width and depth, plus clearances. With a rack selected
- * it measures that rack's four sides (to the nearest rack or wall); with nothing
- * selected it shows one measurement per aisle corridor as an overview.
+ * Floor dimensions: overall hall width and depth plus one measurement per aisle
+ * corridor, always shown while the overlay is on. Selecting a rack ADDS that rack's
+ * four-side clearances (to the nearest rack or wall) on top — it must not replace the
+ * overview, or turning the overlay on with a rack already selected would look like
+ * nothing happened.
  */
 export function MeasureOverlay() {
   const show = useEditorStore((s) => s.showMeasures)
@@ -71,11 +73,11 @@ export function MeasureOverlay() {
 
   const lines = useMemo(() => {
     if (!show) return []
-    const hall = hallDimensions(layout)
-    const detail = selectedRackId
-      ? rackClearances(layout, selectedRackId)
-      : aisleCorridors(layout)
-    return [...hall, ...detail]
+    return [
+      ...hallDimensions(layout),
+      ...aisleCorridors(layout),
+      ...(selectedRackId ? rackClearances(layout, selectedRackId) : []),
+    ]
   }, [show, layout, selectedRackId])
 
   if (!show) return null

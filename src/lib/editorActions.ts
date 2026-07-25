@@ -569,14 +569,9 @@ export function escapeAction(): void {
     ed.setShowDashboard(false)
     return
   }
-  if (ed.showPickPath) {
-    ed.setShowPickPath(false)
-    return
-  }
-  if (ed.showMeasures) {
-    ed.setShowMeasures(false)
-    return
-  }
+  // The pick-route and dimensions overlays are deliberate view toggles driven by their
+  // own buttons, not transient state — Escape must not silently switch them off, or
+  // pressing it to deselect a rack would also wipe the measurements off the plan.
   if (ed.mode !== 'select') {
     ed.setMode('select')
     return
