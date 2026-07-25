@@ -9,6 +9,7 @@ import { Walls } from './Walls'
 import { WallGhost } from './WallGhost'
 import { Zones } from './Zones'
 import { PickPathOverlay } from './PickPathOverlay'
+import { MeasureOverlay } from './MeasureOverlay'
 import { ZoneGhost } from './ZoneGhost'
 
 export function WarehouseCanvas() {
@@ -51,6 +52,7 @@ export function WarehouseCanvas() {
       <Walls />
       <Zones />
       <PickPathOverlay />
+      <MeasureOverlay />
       <Racks />
       <GhostRack />
       <GroupGhost />

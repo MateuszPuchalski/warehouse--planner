@@ -248,7 +248,7 @@ export function isPlacementValid(
 }
 
 /** True when another rack or a wall sits inside the gap zone — then the pair doesn't face across an aisle. */
-function zoneBlocked(zone: AABB, all: AABB[], skipA: AABB, skipB: AABB): boolean {
+export function zoneBlocked(zone: AABB, all: AABB[], skipA: AABB, skipB: AABB): boolean {
   return all.some((o) => o !== skipA && o !== skipB && overlaps(zone, o))
 }
 

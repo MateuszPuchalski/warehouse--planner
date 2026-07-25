@@ -22,6 +22,8 @@ export function TopBar() {
   const setShowInsights = useEditorStore((s) => s.setShowInsights)
   const showPickPath = useEditorStore((s) => s.showPickPath)
   const setShowPickPath = useEditorStore((s) => s.setShowPickPath)
+  const showMeasures = useEditorStore((s) => s.showMeasures)
+  const setShowMeasures = useEditorStore((s) => s.setShowMeasures)
   const setView = useEditorStore((s) => s.setView)
   const hasStock = useStockStore((s) => s.items.length > 0)
   const hasBridge = useStockStore((s) => s.bridgeUrl.trim().length > 0)
@@ -125,6 +127,13 @@ export function TopBar() {
         </button>
         <button className="btn" onClick={() => setShowDashboard(true)}>
           {t('top.kpi')}
+        </button>
+        <button
+          className={`btn ${showMeasures ? 'btn-accent' : ''}`}
+          onClick={() => setShowMeasures(!showMeasures)}
+          title={t('top.measureTip')}
+        >
+          {t('top.measure')}
         </button>
         <button
           className={`btn ${showPickPath ? 'btn-accent' : ''}`}

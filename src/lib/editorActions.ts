@@ -573,6 +573,10 @@ export function escapeAction(): void {
     ed.setShowPickPath(false)
     return
   }
+  if (ed.showMeasures) {
+    ed.setShowMeasures(false)
+    return
+  }
   if (ed.mode !== 'select') {
     ed.setMode('select')
     return
