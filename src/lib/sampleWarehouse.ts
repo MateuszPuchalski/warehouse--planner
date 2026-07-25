@@ -1,4 +1,4 @@
-import type { FloorConfig, RackInstance, RackRotation, RackTemplate, Wall, WarehouseLayout, Zone } from '../types'
+import type { FloorConfig, RackInstance, RackRotation, RackTemplate, SlotRole, Wall, WarehouseLayout, Zone } from '../types'
 import { makePerimeterWalls } from './walls'
 
 /**
@@ -6,8 +6,13 @@ import { makePerimeterWalls } from './walls'
  * (SketchUp survey): a ~18.2 × 19.1 m hall split by a dividing wall, with a
  * packing room (pakowalnia) in the south-west corner.
  *
- * One "regał" = a single 2.7 m bay (3 pallets per beam level). Aisle letters
- * follow the on-site location system `A01-02-03` = aisle+rack, column, level:
+ * One "regał" = one 2.7 m frame-to-frame span. Every 270 cm rack — pallet or
+ * shelf — is divided into **6 columns of 45 cm**: that is the granularity of the
+ * on-site location codes. A euro pallet occupies two of those columns, so a
+ * pallet level physically holds 3 pallets while still being addressed per column.
+ *
+ * Aisle letters follow the on-site location system `A01-02-03` = aisle+rack,
+ * column, level:
  *
  * - A, B, G — shallower shelf racks (Mecalux M7): A south-west along the
  *   divider + in the packing room, B mid-hall north, G north along the divider.
@@ -17,7 +22,13 @@ import { makePerimeterWalls } from './walls'
  *   along the north/west walls and a central back-to-back block.
  */
 
-const PALLET = { bays: 3, bayWidth: 0.9, depth: 1.1, uprightSize: 0.09, beamHeight: 0.12, carrier: 'pallet' as const }
+/**
+ * Pallet-rack frames, 270 cm wide = 6 columns × 45 cm (a pallet spans two of
+ * them). Mecalux carries 110 cm deep picking places, SSI Schaefer 105 cm.
+ */
+const PALLET_COLUMNS = { bays: 6, bayWidth: 0.45, uprightSize: 0.09, beamHeight: 0.12, carrier: 'pallet' as const }
+const MECALUX = { ...PALLET_COLUMNS, depth: 1.1 }
+const SCHAEFER = { ...PALLET_COLUMNS, depth: 1.05 }
 const SHELF = { depth: 0.6, uprightSize: 0.05, beamHeight: 0.04, carrier: 'carton' as const }
 const BIN = { uprightSize: 0.04, beamHeight: 0.025, carrier: 'bin' as const }
 
@@ -30,12 +41,19 @@ type TplBase = {
   carrier: RackTemplate['carrier']
 }
 
+/**
+ * Build a template from its per-level clear heights (bottom → top). Roles are
+ * normally inferred from those heights (≥ 80 cm = pallet position), so pass
+ * `levelRoles` only where that inference would be wrong — e.g. the 100 cm top
+ * level of a shelf rack, which is a tall shelf, not a pallet position.
+ */
 function tpl(
   id: string,
   name: string,
   base: TplBase,
   levelHeights: number[],
   maxWeightKg: number,
+  levelRoles?: SlotRole[],
 ): RackTemplate {
   const avg = levelHeights.reduce((a, b) => a + b, 0) / levelHeights.length
   return {
@@ -45,6 +63,7 @@ function tpl(
     levels: levelHeights.length,
     levelHeight: Number(avg.toFixed(3)),
     levelHeights,
+    ...(levelRoles ? { levelRoles } : {}),
     defaultSlot: { maxWeightKg },
   }
 }
@@ -60,26 +79,33 @@ function uniformTpl(
   return { id, name, ...base, levels, levelHeight, defaultSlot: { maxWeightKg } }
 }
 
+/** All levels of a shelf rack are picking faces, however tall the level is. */
+const ALL_PICK = (n: number): SlotRole[] => Array.from({ length: n }, () => 'pick' as const)
+
 export function buildSampleTemplates(): Record<string, RackTemplate> {
   const templates: RackTemplate[] = [
-    // Mecalux pallet racks, 5.5 m frame, single 2.7 m bay = 3 pallet columns.
-    tpl('tpl-mec-a', 'Mecalux 5.5m A (wąskie poziomy)', PALLET, [1.12, 0.37, 0.47, 0.37, 1.175, 1.7], 800),
-    tpl('tpl-mec-b', 'Mecalux 5.5m B (163 dół)', PALLET, [1.63, 0.47, 0.37, 1.175, 1.7], 800),
-    tpl('tpl-mec-c', 'Mecalux 5.5m C (223 dół)', PALLET, [2.23, 0.37, 1.175, 1.7], 800),
-    // SSI Schaefer pallet racks, 3.5 m frame.
-    tpl('tpl-sch-a', 'SSI Schaefer A (88/48/38/124/250)', PALLET, [0.88, 0.48, 0.38, 1.24, 2.5], 800),
-    tpl('tpl-sch-b', 'SSI Schaefer B (223/124/250)', PALLET, [2.23, 1.24, 2.5], 800),
-    tpl('tpl-sch-c', 'SSI Schaefer C (78/33/28×2/122/210)', PALLET, [0.78, 0.33, 0.28, 0.28, 1.22, 2.1], 800),
-    tpl('tpl-sch-d', 'SSI Schaefer D (223/38/250)', PALLET, [2.23, 0.38, 2.5], 800),
-    // Mecalux M7 shelf racks, 3 m tall (places 45×60 / 36×60 cm).
-    tpl('tpl-m7-270', 'Mecalux M7 270cm (6 miejsc/poziom)', { bays: 6, bayWidth: 0.45, ...SHELF }, [0.57, 0.42, 0.32, 0.32, 0.57, 1.0], 150),
-    tpl('tpl-m7-182', 'Mecalux M7 182cm (5 miejsc/poziom)', { bays: 5, bayWidth: 0.36, ...SHELF }, [0.57, 0.42, 0.32, 0.32, 0.57, 1.0], 150),
+    // Mecalux pallet racks, 5.5 m frame, 270 cm wide = 6 columns; picking levels
+    // hold 110 × 40 cm places. The three variants differ only in level count and
+    // level heights (9 / 2 / 1 racks on site).
+    tpl('tpl-mec-a', 'Mecalux 5,5m A (6 kol · 6 poz)', MECALUX, [1.12, 0.37, 0.47, 0.37, 1.175, 1.7], 800),
+    tpl('tpl-mec-b', 'Mecalux 5,5m B (6 kol · 5 poz)', MECALUX, [1.63, 0.47, 0.37, 1.175, 1.7], 800),
+    tpl('tpl-mec-c', 'Mecalux 5,5m C (6 kol · 4 poz)', MECALUX, [2.23, 0.37, 1.175, 1.7], 800),
+    // SSI Schaefer pallet racks, also 270 cm wide = 6 columns; picking levels
+    // hold 105 × 40 cm places (4 / 5 / 1 / 3 racks on site).
+    tpl('tpl-sch-a', 'SSI Schaefer A (6 kol · 5 poz)', SCHAEFER, [0.88, 0.48, 0.38, 1.24, 2.5], 800),
+    tpl('tpl-sch-b', 'SSI Schaefer B (6 kol · 3 poz)', SCHAEFER, [2.23, 1.24, 2.5], 800),
+    tpl('tpl-sch-c', 'SSI Schaefer C (6 kol · 6 poz)', SCHAEFER, [0.78, 0.33, 0.28, 0.28, 1.22, 2.1], 800),
+    tpl('tpl-sch-d', 'SSI Schaefer D (6 kol · 3 poz)', SCHAEFER, [2.23, 0.38, 2.5], 800),
+    // Mecalux M7 shelf racks, 3 m tall (places 45×60 / 36×60 cm). The 100 cm top
+    // level is a tall shelf, not a pallet position — hence the explicit roles.
+    tpl('tpl-m7-270', 'Mecalux M7 270cm (6 kol · 6 poz)', { bays: 6, bayWidth: 0.45, ...SHELF }, [0.57, 0.42, 0.32, 0.32, 0.57, 1.0], 150, ALL_PICK(6)),
+    tpl('tpl-m7-182', 'Mecalux M7 182cm (5 kol · 6 poz)', { bays: 5, bayWidth: 0.364, ...SHELF }, [0.57, 0.42, 0.32, 0.32, 0.57, 1.0], 150, ALL_PICK(6)),
     // Bin (kuweta) racks, 238 cm tall.
-    uniformTpl('tpl-kuw-106', 'Kuwetowy 106cm (KTR30)', { bays: 5, bayWidth: 0.212, depth: 0.32, ...BIN }, 11, 0.216, 30),
-    uniformTpl('tpl-kuw-126', 'Kuwetowy 126cm (KTR30)', { bays: 6, bayWidth: 0.21, depth: 0.32, ...BIN }, 11, 0.216, 30),
-    uniformTpl('tpl-kuw-93', 'Kuwetowy 93cm (KTR23)', { bays: 5, bayWidth: 0.186, depth: 0.23, ...BIN }, 14, 0.17, 20),
-    uniformTpl('tpl-kuw-96', 'Kuwetowy 96cm (KTR23)', { bays: 6, bayWidth: 0.16, depth: 0.23, ...BIN }, 14, 0.17, 20),
-    uniformTpl('tpl-kuw-93s', 'Kuwetowy 93cm (KTR20)', { bays: 7, bayWidth: 0.133, depth: 0.23, ...BIN }, 14, 0.17, 20),
+    uniformTpl('tpl-kuw-106', 'Kuwetowy 106cm (5 kol · 11 poz, KTR30)', { bays: 5, bayWidth: 0.212, depth: 0.32, ...BIN }, 11, 0.216, 30),
+    uniformTpl('tpl-kuw-126', 'Kuwetowy 126cm (6 kol · 11 poz, KTR30)', { bays: 6, bayWidth: 0.21, depth: 0.32, ...BIN }, 11, 0.216, 30),
+    uniformTpl('tpl-kuw-93', 'Kuwetowy 93cm (5 kol · 14 poz, KTR23)', { bays: 5, bayWidth: 0.186, depth: 0.23, ...BIN }, 14, 0.17, 20),
+    uniformTpl('tpl-kuw-96', 'Kuwetowy 96cm (6 kol · 14 poz, KTR23)', { bays: 6, bayWidth: 0.16, depth: 0.23, ...BIN }, 14, 0.17, 20),
+    uniformTpl('tpl-kuw-93s', 'Kuwetowy 93cm (7 kol · 14 poz, KTR20)', { bays: 7, bayWidth: 0.133, depth: 0.23, ...BIN }, 14, 0.17, 20),
   ]
   return Object.fromEntries(templates.map((t) => [t.id, t]))
 }
