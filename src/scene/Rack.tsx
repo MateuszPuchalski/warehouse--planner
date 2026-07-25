@@ -90,9 +90,14 @@ export function Rack({ rackId }: { rackId: string }) {
     const startGZ = rack.gridZ
     const templateId = rack.templateId
     const rotation = rack.rotation
-    // Grid-space offset from the grab point to the rack centre.
-    const grabDX = startGX - worldToGrid(e.point.x, cellSize)
-    const grabDZ = startGZ - worldToGrid(e.point.z, cellSize)
+    /**
+     * Grid-space offset from the grab point to the rack centre, established from the
+     * FIRST floor sample rather than from this event's `e.point`. `e.point` lies on the
+     * rack's pick box up at mid-height, which under a perspective camera maps to a very
+     * different floor position — deriving the offset from it made a plain click jump the
+     * rack to wherever the cursor met the floor.
+     */
+    let grab: { dx: number; dz: number } | null = null
     let moved = false
     let axis: 'x' | 'z' | null = null
 
@@ -102,8 +107,14 @@ export function Rack({ rackId }: { rackId: string }) {
 
     startDrag({
       onMove: (hit, ev) => {
-        let gx = worldToGrid(hit.x, cellSize) + grabDX
-        let gz = worldToGrid(hit.z, cellSize) + grabDZ
+        if (!grab) {
+          grab = {
+            dx: startGX - worldToGrid(hit.x, cellSize),
+            dz: startGZ - worldToGrid(hit.z, cellSize),
+          }
+        }
+        let gx = worldToGrid(hit.x, cellSize) + grab.dx
+        let gz = worldToGrid(hit.z, cellSize) + grab.dz
 
         if (ev.shiftKey) {
           // Latch to the dominant axis once, then pin the other to its start value.
