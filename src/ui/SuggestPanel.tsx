@@ -5,6 +5,7 @@ import { useEditorStore } from '../store/useEditorStore'
 import { useStockStore } from '../store/useStockStore'
 import { suggestSlots } from '../lib/suggest'
 import { carrierKind } from '../lib/loadProxy'
+import { formatDims } from '../lib/fit'
 import { useT, type TranslationKey } from '../lib/i18n'
 
 const CARRIERS: CarrierKind[] = ['pallet', 'carton', 'bin']
@@ -36,6 +37,8 @@ export function SuggestPanel() {
   const unitWeightKg = product?.unitWeightKg
   const neededVolumeM3 = unitVolumeM3 ? unitVolumeM3 * qty : 0
   const neededWeightKg = unitWeightKg ? unitWeightKg * qty : undefined
+  // One unit's dimensions, not the whole quantity: goods stack, they do not fuse.
+  const dimsMm = product?.unitDimsMm
 
   // Default the carrier filter to where this SKU already lives (dominant carrier).
   useEffect(() => {
@@ -59,10 +62,10 @@ export function SuggestPanel() {
     return suggestSlots(
       layout,
       stockIndex,
-      { neededVolumeM3, neededWeightKg, carrier: carrier === 'any' ? undefined : carrier },
+      { neededVolumeM3, neededWeightKg, dimsMm, carrier: carrier === 'any' ? undefined : carrier },
       { sku, limit: 30 },
     )
-  }, [layout, stockIndex, neededVolumeM3, neededWeightKg, carrier, sku])
+  }, [layout, stockIndex, neededVolumeM3, neededWeightKg, dimsMm, carrier, sku])
 
   // Push the highlight set to the scene whenever the results change.
   useEffect(() => {
@@ -137,6 +140,7 @@ export function SuggestPanel() {
             <>
               {t('suggest.needVolume', { v: neededVolumeM3.toFixed(3) })}
               {neededWeightKg !== undefined && <> · {t('suggest.needWeight', { w: neededWeightKg.toFixed(1) })}</>}
+              {dimsMm && <> · {formatDims(dimsMm)} mm</>}
             </>
           ) : (
             <span className="text-warn">{t('suggest.noVolume')}</span>

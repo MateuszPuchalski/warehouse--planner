@@ -1,7 +1,8 @@
 // Read-only LAN bridge for the Warehouse Planner digital twin.
 //
 // Serves current Subiekt GT stock as `GET /api/stock` → BridgeRecord[]:
-//   { symbol, name?, quantity?, unit?, locationRaw?, ean?, unitVolumeM3?, unitWeightKg? }
+//   { symbol, name?, quantity?, unit?, locationRaw?, ean?, unitVolumeM3?, unitWeightKg?,
+//     unitDimsMm? {l,w,h} }
 // The browser client parses `locationRaw` ("A01-02-03") itself, so this service
 // stays a thin, read-only projection of the ERP — no address logic lives here.
 //
@@ -32,7 +33,7 @@ const config = {
 }
 
 const MOCK_STOCK = [
-  { symbol: 'NOZ-001', name: 'Nóż szefa kuchni 20cm', quantity: 42, unit: 'szt', locationRaw: 'H01-01-01', ean: '5901234123457', unitVolumeM3: 0.0008, unitWeightKg: 0.25 },
+  { symbol: 'NOZ-001', name: 'Nóż szefa kuchni 20cm', quantity: 42, unit: 'szt', locationRaw: 'H01-01-01', ean: '5901234123457', unitVolumeM3: 0.0008, unitWeightKg: 0.25, unitDimsMm: { l: 340, w: 45, h: 25 } },
   { symbol: 'NOZ-002', name: 'Nóż do warzyw 12cm', quantity: 18, unit: 'szt', locationRaw: 'H01-01-02', ean: '5901234123464', unitVolumeM3: 0.0005, unitWeightKg: 0.15 },
   { symbol: 'PAL-100', name: 'Karton zbiorczy A', quantity: 6, unit: 'pal', locationRaw: 'C02-03-01', unitVolumeM3: 1.2, unitWeightKg: 320 },
   { symbol: 'PAL-101', name: 'Karton zbiorczy B', quantity: 4, unit: 'pal', locationRaw: 'D01-01-02', unitVolumeM3: 1.2, unitWeightKg: 280 },
