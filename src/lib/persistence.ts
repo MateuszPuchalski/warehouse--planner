@@ -1,4 +1,5 @@
 import type { FloorConfig, RackInstance, RackRotation, RackTemplate, SlotRole, Wall, WarehouseLayout } from '../types'
+import { buildSampleTemplates } from './sampleWarehouse'
 import { makePerimeterWalls } from './walls'
 
 const AUTOSAVE_KEY = 'wp:autosave:v1'
@@ -279,18 +280,35 @@ export function deletePreset(name: string): void {
 
 // ---------- Template library (reusable across layouts) ----------
 
-export function loadTemplateLibrary(): Record<string, RackTemplate> {
+/** Only what the user saved themselves — the writable half of the library. */
+function readUserLibrary(): Record<string, RackTemplate> {
   return readStored<Record<string, RackTemplate>>(TEMPLATE_LIB_KEY) ?? {}
 }
 
+/**
+ * The real racks from the "Regały" survey, always offered so an empty hall can be
+ * furnished without loading the demo layout first. They are not written to
+ * localStorage: editing one and saving it back stores a user copy under the same
+ * id, which then shadows the built-in.
+ */
+export function builtinTemplates(): Record<string, RackTemplate> {
+  return buildSampleTemplates()
+}
+
+/** Built-in racks plus the user's own; a saved template with the same id wins. */
+export function loadTemplateLibrary(): Record<string, RackTemplate> {
+  return { ...builtinTemplates(), ...readUserLibrary() }
+}
+
 export function saveTemplateToLibrary(t: RackTemplate): void {
-  const lib = loadTemplateLibrary()
+  const lib = readUserLibrary()
   lib[t.id] = t
   writeStored(TEMPLATE_LIB_KEY, lib)
 }
 
+/** Removes the user's copy; a built-in of the same id reappears underneath. */
 export function removeTemplateFromLibrary(id: string): void {
-  const lib = loadTemplateLibrary()
+  const lib = readUserLibrary()
   delete lib[id]
   writeStored(TEMPLATE_LIB_KEY, lib)
 }

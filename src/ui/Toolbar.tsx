@@ -17,6 +17,7 @@ const MODES: { mode: EditorMode; tkey: TranslationKey; key: string; icon: string
 export function Toolbar() {
   const templates = useWarehouseStore((s) => s.layout.templates)
   const upsertTemplate = useWarehouseStore((s) => s.upsertTemplate)
+  const upsertTemplates = useWarehouseStore((s) => s.upsertTemplates)
   const mode = useEditorStore((s) => s.mode)
   const setMode = useEditorStore((s) => s.setMode)
   const armPlace = useEditorStore((s) => s.armPlace)
@@ -26,7 +27,10 @@ export function Toolbar() {
   const t = useT()
 
   const [libOpen, setLibOpen] = useState(false)
-  const library = libOpen ? loadTemplateLibrary() : {}
+  // Built-in racks (the surveyed Mecalux / Schaefer / M7 / kuweta set) plus anything
+  // the user saved; read on open so a save from the template editor shows up at once.
+  const libEntries = libOpen ? Object.values(loadTemplateLibrary()) : []
+  const missing = libEntries.filter((tpl) => templates[tpl.id] === undefined)
   const width = usePanelStore((s) => s.leftWidth)
   const collapsed = usePanelStore((s) => s.leftCollapsed)
 
@@ -105,26 +109,48 @@ export function Toolbar() {
         </button>
         {libOpen && (
           <div className="mt-1 flex flex-col gap-1">
-            {Object.values(library).length === 0 && (
+            {libEntries.length === 0 && (
               <div className="px-1 text-[11px] text-muted">{t('tool.libraryEmpty')}</div>
             )}
-            {Object.values(library).map((tpl) => (
-              <div
-                key={tpl.id}
-                className="flex items-center justify-between rounded-md border border-border bg-panel2 p-1.5"
+            {missing.length > 1 && (
+              <button
+                className="btn justify-center"
+                onClick={() => {
+                  upsertTemplates(missing)
+                  showToast(t('toast.addedAllFromLibrary', { count: missing.length }))
+                }}
               >
-                <span className="truncate text-[11px]">{tpl.name}</span>
-                <button
-                  className="btn !px-1.5 !py-0"
-                  onClick={() => {
-                    upsertTemplate(tpl)
-                    showToast(t('toast.addedFromLibrary', { name: tpl.name }))
-                  }}
+                {t('tool.addAll', { count: missing.length })}
+              </button>
+            )}
+            {libEntries.map((tpl) => {
+              const already = templates[tpl.id] !== undefined
+              return (
+                <div
+                  key={tpl.id}
+                  className="flex items-center justify-between gap-1 rounded-md border border-border bg-panel2 p-1.5"
                 >
-                  {t('tool.add')}
-                </button>
-              </div>
-            ))}
+                  <span className={`truncate text-[11px] ${already ? 'text-muted' : ''}`}>
+                    {tpl.name}
+                  </span>
+                  {already ? (
+                    // Already in this layout — nothing to add, so say so instead of
+                    // offering a button that silently overwrites it.
+                    <span className="shrink-0 text-[10px] text-muted">{t('tool.inLayout')}</span>
+                  ) : (
+                    <button
+                      className="btn shrink-0 !px-1.5 !py-0"
+                      onClick={() => {
+                        upsertTemplate(tpl)
+                        showToast(t('toast.addedFromLibrary', { name: tpl.name }))
+                      }}
+                    >
+                      {t('tool.add')}
+                    </button>
+                  )}
+                </div>
+              )
+            })}
           </div>
         )}
       </div>
