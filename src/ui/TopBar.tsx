@@ -20,6 +20,7 @@ export function TopBar() {
   const setShowSuggest = useEditorStore((s) => s.setShowSuggest)
   const setShowDashboard = useEditorStore((s) => s.setShowDashboard)
   const setShowInsights = useEditorStore((s) => s.setShowInsights)
+  const setShowSlotting = useEditorStore((s) => s.setShowSlotting)
   const showPickPath = useEditorStore((s) => s.showPickPath)
   const setShowPickPath = useEditorStore((s) => s.setShowPickPath)
   const showMeasures = useEditorStore((s) => s.showMeasures)
@@ -99,6 +100,7 @@ export function TopBar() {
             <option value="volume">{t('top.color.volume')}</option>
             <option value="stock">{t('top.color.stock')}</option>
             <option value="function">{t('top.color.function')}</option>
+            <option value="demand">{t('top.color.demand')}</option>
             <option value="none">{t('top.color.none')}</option>
           </select>
         </label>
@@ -155,6 +157,9 @@ export function TopBar() {
         </button>
         <button className="btn" onClick={() => setShowInsights(true)}>
           {t('top.insights')}
+        </button>
+        <button className="btn" onClick={() => setShowSlotting(true)} title={t('top.slottingTip')}>
+          {t('top.slotting')}
         </button>
         <button className="btn" onClick={() => setShowPresetManager(true)}>
           {t('top.presets')}

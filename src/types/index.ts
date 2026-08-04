@@ -7,7 +7,7 @@ export type SlotStatus = 'empty' | 'ok' | 'warning' | 'overweight' | 'blocked'
 
 export type EditorMode = 'select' | 'place' | 'delete' | 'wall' | 'zone'
 
-export type ColorMode = 'status' | 'utilization' | 'stock' | 'volume' | 'function' | 'none'
+export type ColorMode = 'status' | 'utilization' | 'stock' | 'volume' | 'function' | 'demand' | 'none'
 
 /** Operational function of a slot: bulk pallet position (reserve) vs picking face (kompletacja). */
 export type SlotRole = 'pallet' | 'pick'
@@ -346,6 +346,81 @@ export interface HistorySnapshot {
   occupiedSlots: number
   slotCount: number
   overVolumeSlots: number
+}
+
+// ---------- Picking-frequency report (slotting input) ----------
+
+/** Movement class of a product: A = the vital few lines, C = the long tail. */
+export type AbcClass = 'A' | 'B' | 'C'
+
+/** How likely a picker is to grab the wrong twin of a product ("Ryzyko_pomylki"). */
+export type ConfusionRisk = 'high' | 'medium' | 'none'
+
+/**
+ * One product row of a Subiekt GT picking-frequency export ("top produkty wg symbolu").
+ * Unlike `SkuStat` — which is inferred from quantity deltas between syncs — this is
+ * measured demand straight from the order history: how many PICK LINES the product
+ * generated, which is exactly the number of times someone walked to its slot.
+ */
+export interface PickStat {
+  symbol: string
+  name: string
+  ean?: string
+  supplier?: string
+  unit?: string
+  /** Pick lines in the reported period — the demand driver for slotting. */
+  lines: number
+  orders: number
+  units: number
+  /** Share of all pick lines, in percent. */
+  sharePct: number
+  /** Cumulative share up to and including this product (Pareto curve), in percent. */
+  cumulativePct: number
+  abc: AbcClass
+  /** Days on which the product moved at all, and months it was active in. */
+  daysWithMovement: number
+  activeMonths: number
+  firstPick?: string
+  lastPick?: string
+  /** Pick lines per calendar month of the period, oldest first. */
+  monthlyLines: number[]
+  /** Other catalogue symbols holding the same product, and how many of them rotate. */
+  twins: number
+  twinsRotating: number
+  confusion: ConfusionRisk
+}
+
+/**
+ * One product NAME of the companion export ("top produkty wg nazwy"): the same goods
+ * summed across every symbol they were entered under. The symbol split is what makes
+ * duplicate-catalogue consolidation possible — a name with two rotating symbols is one
+ * product picked from two addresses.
+ */
+export interface PickGroup {
+  name: string
+  lines: number
+  units: number
+  abc: AbcClass
+  /** Symbols that actually rotated in the period, with their own pick lines. */
+  symbols: { symbol: string; lines: number }[]
+  rotatingSymbols: number
+  catalogSymbols: number
+}
+
+/** A parsed picking-frequency report, persisted outside the layout document. */
+export interface PickReport {
+  importedAt: string
+  /** Names of the files folded into this report (symbol export, name export). */
+  fileNames: string[]
+  /** Period covered, as ISO dates read from the rows. */
+  from: string | null
+  to: string | null
+  /** Pick lines across every product in the report. */
+  totalLines: number
+  /** Per-symbol demand, keyed by symbol. */
+  stats: Record<string, PickStat>
+  /** Per-product-name demand; empty until the name export is loaded too. */
+  groups: PickGroup[]
 }
 
 /**

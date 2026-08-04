@@ -263,6 +263,28 @@ export function saveSkuStats(stats: Record<string, import('../types').SkuStat>):
   writeStored(SKU_STATS_KEY, stats)
 }
 
+// ---------- Picking-frequency report (slotting) ----------
+
+const PICK_REPORT_KEY = 'wp:pickReport:v1'
+
+export function loadPickReport(): import('../types').PickReport | null {
+  const data = readStored<import('../types').PickReport>(PICK_REPORT_KEY)
+  if (!data || typeof data.stats !== 'object' || data.stats === null) return null
+  return { ...data, groups: Array.isArray(data.groups) ? data.groups : [] }
+}
+
+export function savePickReport(report: import('../types').PickReport | null): void {
+  if (!report) {
+    try {
+      localStorage.removeItem(PICK_REPORT_KEY)
+    } catch (err) {
+      console.warn('[persistence] failed to clear the pick report', err)
+    }
+    return
+  }
+  writeStored(PICK_REPORT_KEY, report)
+}
+
 // ---------- Layout presets ----------
 
 export function listPresets(): Record<string, WarehouseLayout> {

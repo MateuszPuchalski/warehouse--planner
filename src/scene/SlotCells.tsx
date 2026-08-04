@@ -4,10 +4,11 @@ import { Edges } from '@react-three/drei'
 import type { RackInstance, RackTemplate } from '../types'
 import { allSlots, effectiveVolume, getSlotCell, parseSlotKey } from '../lib/rackGeometry'
 import { carrierKind, proxyTransforms, stockProxyFill } from '../lib/loadProxy'
-import { slotColor, utilizationColor } from '../lib/colorModes'
+import { slotAbcClass, slotColor, utilizationColor } from '../lib/colorModes'
 import { useEditorStore } from '../store/useEditorStore'
 import { useWarehouseStore } from '../store/useWarehouseStore'
 import { useRackStock } from '../store/useStockStore'
+import { usePickReportStore } from '../store/usePickReportStore'
 import { boxGeo, slotMat, loadMat, palletBaseMat } from './materials'
 
 const tmpMat4 = new THREE.Matrix4()
@@ -32,6 +33,7 @@ export function SlotCells({ rack, template }: { rack: RackInstance; template: Ra
   const baseRef = useRef<THREE.InstancedMesh>(null)
   const slots = useMemo(() => allSlots(template, rack), [template, rack])
   const stock = useRackStock(rack.code)
+  const pickStats = usePickReportStore((s) => s.report?.stats)
   const count = template.bays * template.levels
 
   const proxiesVisible = showLoadProxies && (colorMode === 'stock' || colorMode === 'volume')
@@ -50,11 +52,16 @@ export function SlotCells({ rack, template }: { rack: RackInstance; template: Ra
       mesh.setMatrixAt(i, tmpMat4)
       const stockItems = stock?.[slot.key]
       const volUtil = effectiveVolume(slot, stockItems).util
-      mesh.setColorAt(i, tmpColor.set(slotColor(slot, colorMode, stockItems?.length ?? 0, volUtil)))
+      mesh.setColorAt(
+        i,
+        tmpColor.set(
+          slotColor(slot, colorMode, stockItems?.length ?? 0, volUtil, slotAbcClass(stockItems, pickStats)),
+        ),
+      )
     }
     mesh.instanceMatrix.needsUpdate = true
     if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true
-  }, [slots, template, colorMode, stock])
+  }, [slots, template, colorMode, stock, pickStats])
 
   // Load proxies: a solid box (+ pallet base) sitting in each slot that holds
   // stock, sized to the stock-derived volume fill. Empty slots collapse to zero.

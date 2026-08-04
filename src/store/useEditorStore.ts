@@ -44,6 +44,7 @@ export interface EditorState {
   showSuggest: boolean
   showDashboard: boolean
   showInsights: boolean
+  showSlotting: boolean
   /** Draw the picking walk order on the floor. */
   showPickPath: boolean
   /** Draw floor dimensions: hall size and rack/wall clearances. */
@@ -87,6 +88,7 @@ export interface EditorState {
   setShowSuggest: (open: boolean) => void
   setShowDashboard: (open: boolean) => void
   setShowInsights: (open: boolean) => void
+  setShowSlotting: (open: boolean) => void
   setShowPickPath: (open: boolean) => void
   setShowMeasures: (open: boolean) => void
   setShowRackCodes: (open: boolean) => void
@@ -152,6 +154,7 @@ export const useEditorStore = create<EditorState>()((set, get) => ({
   showSuggest: false,
   showDashboard: false,
   showInsights: false,
+  showSlotting: false,
   showPickPath: false,
   showMeasures: false,
   // On by default — a permanent label that starts hidden is not permanent; the toggle
@@ -289,6 +292,7 @@ export const useEditorStore = create<EditorState>()((set, get) => ({
   setShowSuggest: (showSuggest) => set({ showSuggest }),
   setShowDashboard: (showDashboard) => set({ showDashboard }),
   setShowInsights: (showInsights) => set({ showInsights }),
+  setShowSlotting: (showSlotting) => set({ showSlotting }),
   setShowPickPath: (showPickPath) => set({ showPickPath }),
   setShowMeasures: (showMeasures) => set({ showMeasures }),
   setShowRackCodes: (showRackCodes) => set({ showRackCodes }),
