@@ -131,6 +131,57 @@ export function walkGrid(layout: WarehouseLayout): WalkGrid {
   return g
 }
 
+/**
+ * Walking distance in meters from one origin to EVERY cell of the grid, as a flood fill.
+ * Slotting needs "how far is this rack from the dock" for every rack at once; one sweep
+ * answers all of them, where a per-rack A* would re-search the same hall each time.
+ * Unreachable cells stay `Infinity`. Returns null when the grid is degraded, so callers
+ * fall back to straight-line distance rather than reading a field of zeros.
+ */
+export function walkDistanceField(layout: WarehouseLayout, x: number, z: number): Float32Array | null {
+  const g = walkGrid(layout)
+  if (g.degraded) return null
+  const start = nearestFreeCell(g, x, z)
+  if (!start) return null
+
+  const dist = new Float32Array(g.nx * g.nz).fill(Infinity)
+  const from = start.j * g.nx + start.i
+  dist[from] = 0
+  // 4-neighbour BFS: every step costs one cell, so the queue stays in distance order.
+  const queue = new Int32Array(g.nx * g.nz)
+  queue[0] = from
+  let head = 0
+  let tail = 1
+  while (head < tail) {
+    const cur = queue[head++]
+    const ci = cur % g.nx
+    const cj = (cur - ci) / g.nx
+    for (const [di, dj] of [
+      [1, 0],
+      [-1, 0],
+      [0, 1],
+      [0, -1],
+    ] as const) {
+      const ni = ci + di
+      const nj = cj + dj
+      if (!inside(g, ni, nj)) continue
+      const nb = nj * g.nx + ni
+      if (g.blocked[nb] === 1 || dist[nb] !== Infinity) continue
+      dist[nb] = dist[cur] + g.cell
+      queue[tail++] = nb
+    }
+  }
+  return dist
+}
+
+/** Distance field lookup at a world point, snapped to the nearest walkable cell. */
+export function distanceAt(g: WalkGrid, field: Float32Array, x: number, z: number): number | null {
+  const cell = nearestFreeCell(g, x, z)
+  if (!cell) return null
+  const d = field[cell.j * g.nx + cell.i]
+  return Number.isFinite(d) ? d : null
+}
+
 function toCell(g: WalkGrid, x: number, z: number): { i: number; j: number } {
   return {
     i: Math.round((x - g.originX) / g.cell),

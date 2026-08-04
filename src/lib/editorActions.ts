@@ -696,6 +696,10 @@ export function escapeAction(): void {
     ed.setShowDashboard(false)
     return
   }
+  if (ed.showSlotting) {
+    ed.setShowSlotting(false)
+    return
+  }
   // The pick-route and dimensions overlays are deliberate view toggles driven by their
   // own buttons, not transient state — Escape must not silently switch them off, or
   // pressing it to deselect a rack would also wipe the measurements off the plan.

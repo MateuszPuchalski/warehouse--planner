@@ -59,6 +59,24 @@ npm run dev     # http://localhost:5173
   warnings (stat tiles + meters), free slots broken down by carrier (pallet / carton / bin),
   and a stock summary (SKUs, total quantity, located / pallet-only / unlocated). Metrics are
   aggregated in `src/lib/kpi.ts` (`computeKpis`) reusing the existing slot/volume/aisle helpers.
+- **Slotting (re-slot by picking frequency)** — the "Slotting" button loads the Subiekt GT
+  picking-frequency exports (`top_produkty_symbol_…` and `top_produkty_nazwa_…`, CSV or XLSX)
+  and turns measured demand into a re-slotting plan. Every slot gets a cost in
+  walking-equivalent meters — flood-fill walking distance from the dock zone (falling back to
+  staging / packing / the first rack of the pick route) plus a reach penalty for the level
+  height, so the golden zone is free and a top shelf is expensive — and every product gets its
+  pick lines. Effort is `lines × cost`, so the panel reports the walking done today, the walking
+  after re-slotting, and the difference, then lists the individual moves and swaps that get
+  there (click one to select the target slot; targets highlight green in 3D, and the plan
+  exports to CSV). The by-name export additionally finds **one product entered under several
+  symbols** sitting in different racks, with the export's own mix-up risk flag. Demand is joined
+  to shelf addresses through the imported stock, so a stock import comes first; the ERP stays the
+  owner of addresses — nothing is rewritten, the plan is advice. Parsing lives in
+  `src/lib/pickReport.ts`, the model in `src/lib/slotting.ts`, and the report is persisted
+  separately from the layout (`wp:pickReport:v1`).
+- **Demand color mode** — "Demand (ABC)" shades every slot by the movement class of the goods
+  in it (A red · B amber · C blue), in both the 3D scene and the inspector grid; occupied slots
+  whose products never appear in the report stay grey, which is a finding of its own.
 - **Home screen** — the app opens on a launcher (`src/ui/HomeScreen.tsx`) to start a new empty
   warehouse, continue the last one, open the built-in „Regały" sample, import a JSON layout, or open
   a saved plan (preset). The title bar acts as a "Home" button to return. Editor and home are gated

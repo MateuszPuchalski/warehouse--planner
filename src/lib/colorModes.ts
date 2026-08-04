@@ -1,4 +1,4 @@
-import type { ColorMode, ResolvedSlot, SlotRole, SlotStatus } from '../types'
+import type { AbcClass, ColorMode, PickStat, ResolvedSlot, SlotRole, SlotStatus } from '../types'
 
 export const STATUS_COLORS: Record<SlotStatus, string> = {
   empty: '#4b5563',
@@ -24,11 +24,44 @@ export const ROLE_COLORS: Record<SlotRole, string> = {
   pick: '#f5a623',
 }
 
+/**
+ * Movement class of the goods in a slot: A burns red, C cools to blue. Deliberately not
+ * the green→red utilization ramp — this axis is demand, not fill, and reading one as the
+ * other is the mistake the slotting panel exists to correct.
+ */
+export const ABC_COLORS: Record<AbcClass, string> = {
+  A: '#ff5c5c',
+  B: '#ffb020',
+  C: '#38bdf8',
+}
+
+const CLASS_ORDER: AbcClass[] = ['A', 'B', 'C']
+
+/**
+ * Fastest-moving class among a slot's goods, or null when nothing there appears in the
+ * picking report. One slot shows the demand it actually serves, so a shelf mixing an A
+ * and a C reads as A — that is the walk the picker makes.
+ */
+export function slotAbcClass(
+  items: { symbol: string }[] | undefined,
+  stats: Record<string, PickStat> | undefined,
+): AbcClass | null {
+  if (!items || !stats) return null
+  let best: AbcClass | null = null
+  for (const item of items) {
+    const abc = stats[item.symbol]?.abc
+    if (!abc) continue
+    if (!best || CLASS_ORDER.indexOf(abc) < CLASS_ORDER.indexOf(best)) best = abc
+  }
+  return best
+}
+
 export function slotColor(
   slot: ResolvedSlot,
   mode: ColorMode,
   stockCount = 0,
   volumeUtil?: number,
+  abc?: AbcClass | null,
 ): string {
   if (mode === 'utilization') {
     if (slot.status === 'blocked') return STATUS_COLORS.blocked
@@ -49,6 +82,12 @@ export function slotColor(
   }
   if (mode === 'function') {
     return ROLE_COLORS[slot.role]
+  }
+  if (mode === 'demand') {
+    if (slot.status === 'blocked') return STATUS_COLORS.blocked
+    // Occupied but absent from the report = goods that never moved in the period, which is
+    // a finding in itself; they keep the empty grey rather than borrowing a class color.
+    return abc ? ABC_COLORS[abc] : STATUS_COLORS.empty
   }
   return STATUS_COLORS[slot.status]
 }

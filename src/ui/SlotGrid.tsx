@@ -1,10 +1,11 @@
 import { useMemo } from 'react'
 import type { RackInstance, RackTemplate } from '../types'
 import { allSlots, effectiveVolume } from '../lib/rackGeometry'
-import { slotColor } from '../lib/colorModes'
+import { slotAbcClass, slotColor } from '../lib/colorModes'
 import { statusLabel, useT } from '../lib/i18n'
 import { useEditorStore } from '../store/useEditorStore'
 import { useRackStock } from '../store/useStockStore'
+import { usePickReportStore } from '../store/usePickReportStore'
 
 /** 2D bay × level grid mirroring the 3D slot colors — the primary slot-editing surface. */
 export function SlotGrid({ rack, template }: { rack: RackInstance; template: RackTemplate }) {
@@ -16,6 +17,7 @@ export function SlotGrid({ rack, template }: { rack: RackInstance; template: Rac
   const slots = useMemo(() => allSlots(template, rack), [template, rack])
   const byKey = useMemo(() => new Map(slots.map((s) => [s.key, s])), [slots])
   const stock = useRackStock(rack.code)
+  const pickStats = usePickReportStore((s) => s.report?.stats)
 
   // Levels rendered top-down (highest level first).
   const rows: number[] = []
@@ -49,7 +51,7 @@ export function SlotGrid({ rack, template }: { rack: RackInstance; template: Rac
                   selected ? 'ring-2 ring-white' : vol.over ? 'ring-2 ring-red-500' : ''
                 }`}
                 style={{
-                  background: slotColor(slot, mode, stockItems?.length ?? 0, vol.util),
+                  background: slotColor(slot, mode, stockItems?.length ?? 0, vol.util, slotAbcClass(stockItems, pickStats)),
                   opacity: occupied ? 0.95 : 0.45,
                 }}
               />

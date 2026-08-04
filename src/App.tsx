@@ -26,6 +26,7 @@ import { SubiektImport } from './ui/SubiektImport'
 import { SuggestPanel } from './ui/SuggestPanel'
 import { Dashboard } from './ui/Dashboard'
 import { Insights } from './ui/Insights'
+import { Slotting } from './ui/Slotting'
 import { HomeScreen } from './ui/HomeScreen'
 import { BridgeSync } from './ui/BridgeSync'
 import { MarqueeBox } from './ui/MarqueeBox'
@@ -73,6 +74,7 @@ export default function App() {
   const showSuggest = useEditorStore((s) => s.showSuggest)
   const showDashboard = useEditorStore((s) => s.showDashboard)
   const showInsights = useEditorStore((s) => s.showInsights)
+  const showSlotting = useEditorStore((s) => s.showSlotting)
   const view = useEditorStore((s) => s.view)
   const lang = useI18nStore((s) => s.lang)
   const resizing = usePanelStore((s) => s.resizing)
@@ -211,6 +213,7 @@ export default function App() {
       {showSuggest && <SuggestPanel />}
       {showDashboard && <Dashboard />}
       {showInsights && <Insights />}
+      {showSlotting && <Slotting />}
       <BridgeSync />
       <MarqueeBox />
       <Toast />
